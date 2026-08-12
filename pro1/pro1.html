@@ -1,0 +1,1859 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDU AI — نموذج أولي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F5F1E6;
+    --paper-2:#ECE4D2;
+    --card:#FBF8F1;
+    --ink:#17212C;
+    --ink-soft:#4B5560;
+    --navy:#0E2A47;
+    --navy-2:#173C61;
+    --teal:#2F6F68;
+    --teal-soft:#E4EEEC;
+    --bronze:#AD8752;
+    --bronze-soft:#F1E5CE;
+    --brick:#A44832;
+    --line:#DCD2B9;
+    --white:#FFFFFF;
+    --radius:14px;
+    --shadow: 0 1px 2px rgba(23,33,44,.06), 0 8px 24px -12px rgba(23,33,44,.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    line-height:1.65;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:'Tajawal', sans-serif;
+    font-weight:900;
+    letter-spacing:-.01em;
+    margin:0;
+    color:var(--navy);
+  }
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  a{color:inherit;}
+  button{font-family:inherit;cursor:pointer;}
+  ::selection{background:var(--bronze-soft);}
+  :focus-visible{outline:2.5px solid var(--teal);outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+  }
+
+  .shell{max-width:1080px;margin:0 auto;padding:0 22px;}
+  .topbar{
+    position:sticky;top:0;z-index:20;
+    background:rgba(245,241,230,.9);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .topbar-inner{
+    max-width:1080px;margin:0 auto;padding:14px 22px;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+  }
+  .wordmark{
+    display:flex;align-items:center;gap:10px;
+    font-family:'Tajawal',sans-serif;font-weight:900;font-size:19px;color:var(--navy);
+  }
+  .wordmark .seal{
+    width:30px;height:30px;border-radius:50%;
+    border:2px solid var(--navy);
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:800;color:var(--navy);
+    font-family:'IBM Plex Mono',monospace;
+  }
+  .pill{
+    font-size:11.5px;font-family:'IBM Plex Mono',monospace;
+    padding:5px 11px;border-radius:99px;border:1px solid var(--line);
+    color:var(--ink-soft);background:var(--card);white-space:nowrap;
+  }
+  .topbar-actions{display:flex;align-items:center;gap:10px;}
+  .backbtn{
+    display:flex;align-items:center;gap:6px;
+    background:none;border:1px solid var(--line);border-radius:10px;
+    padding:8px 14px;font-size:14px;color:var(--navy);font-weight:600;
+    transition:.15s;
+  }
+  .backbtn:hover{background:var(--card);border-color:var(--navy);}
+
+  /* ---------- LANDING ---------- */
+  .hero{padding:64px 0 46px;}
+  .hero-eyebrow{
+    font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--teal);
+    letter-spacing:.06em;margin-bottom:16px;display:flex;align-items:center;gap:8px;
+  }
+  .hero-eyebrow::before{content:'';width:22px;height:1.5px;background:var(--teal);}
+  .hero h1{font-size:clamp(32px,5vw,50px);line-height:1.15;max-width:15ch;}
+  .hero p.lead{
+    margin-top:18px;font-size:17px;color:var(--ink-soft);max-width:56ch;
+  }
+  .role-grid{
+    margin-top:44px;display:grid;grid-template-columns:1fr 1fr;gap:20px;
+  }
+  @media (max-width:760px){ .role-grid{grid-template-columns:1fr;} }
+  .role-card{
+    position:relative;background:var(--card);border:1px solid var(--line);
+    border-radius:18px;padding:30px 26px 26px;box-shadow:var(--shadow);
+    transition:.2s ease; cursor:pointer; text-align:start; overflow:hidden;
+  }
+  .role-card:hover{transform:translateY(-3px);border-color:var(--navy);}
+  .role-card::after{
+    content:'';position:absolute;inset-inline-start:-30px;bottom:-30px;width:110px;height:110px;
+    border-radius:50%;background:var(--bronze-soft);opacity:.55;z-index:0;
+  }
+  .role-card > *{position:relative;z-index:1;}
+  .role-icon{
+    width:46px;height:46px;border-radius:12px;background:var(--navy);color:var(--white);
+    display:flex;align-items:center;justify-content:center;margin-bottom:18px;font-size:20px;
+  }
+  .role-card h3{font-size:21px;margin-bottom:8px;}
+  .role-card p{color:var(--ink-soft);font-size:14.5px;margin:0 0 20px;}
+  .role-go{
+    display:inline-flex;align-items:center;gap:8px;font-weight:700;color:var(--navy);font-size:14.5px;
+  }
+  .role-go .arrow{transition:.2s;}
+  .role-card:hover .role-go .arrow{transform:translateX(-4px);}
+
+  .disclaimer{
+    margin:46px 0 60px;padding:16px 18px;border-radius:12px;
+    background:var(--teal-soft);border:1px dashed var(--teal);
+    font-size:13px;color:#274c47;max-width:70ch;
+  }
+
+  /* ---------- ENTRY FORMS ---------- */
+  .entry-wrap{padding:56px 0;max-width:480px;margin:0 auto;}
+  .entry-card{
+    background:var(--card);border:1px solid var(--line);border-radius:18px;padding:34px 30px;box-shadow:var(--shadow);
+  }
+  .entry-card .kicker{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--teal);letter-spacing:.05em;margin-bottom:10px;}
+  .entry-card h2{font-size:24px;margin-bottom:8px;}
+  .entry-card p.sub{color:var(--ink-soft);font-size:14px;margin:0 0 26px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:13px;font-weight:700;color:var(--navy);margin-bottom:6px;}
+  .field input, .field select{
+    width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-family:inherit;font-size:14.5px;
+    background:var(--white);
+  }
+  .field input:focus, .field select:focus{border-color:var(--navy);outline:none;}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:520px){.field-row{grid-template-columns:1fr;}}
+  .entry-submit{
+    width:100%;background:var(--navy);color:var(--white);border:none;border-radius:10px;padding:13px;font-weight:700;
+    font-size:15px;margin-top:16px;transition:.15s;
+  }
+  .entry-submit:hover{background:var(--navy-2);}
+  .entry-note{font-size:12px;color:var(--ink-soft);margin-top:14px;text-align:center; padding:10px; background:var(--paper-2); border-radius:8px;}
+
+  /* ---------- STUDENT HUB ---------- */
+  .subheader{padding:30px 0 4px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;}
+  .subheader .kicker{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--bronze);letter-spacing:.05em;}
+  .subheader h2{font-size:27px;margin-top:6px;}
+  .edit-link{font-size:12.5px;color:var(--teal);font-weight:700;background:none;border:none;text-decoration:underline;}
+  .tabs{display:flex;gap:8px;margin:22px 0 28px;border-bottom:1px solid var(--line);}
+  .tab{
+    padding:11px 18px;font-size:14.5px;font-weight:700;color:var(--ink-soft);
+    border-bottom:2.5px solid transparent;background:none;border-top:none;border-inline:none;
+    margin-bottom:-1px;
+  }
+  .tab.active{color:var(--navy);border-bottom-color:var(--navy);}
+  .tab-desc{font-size:13.5px;color:var(--ink-soft);margin:-14px 0 22px;}
+
+  .split{display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;}
+  @media (max-width:820px){ .split{grid-template-columns:1fr;} }
+
+  .profile-card{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;
+  }
+  .profile-card h4{font-size:13px;color:var(--ink-soft);font-weight:700;margin:0 0 14px;
+    text-transform:uppercase;letter-spacing:.04em;font-family:'IBM Plex Mono',monospace;font-size:11px;}
+  .prow{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px;}
+  .prow:last-child{border-bottom:none;}
+  .prow .k{color:var(--ink-soft);}
+  .prow .v{font-weight:600;text-align:end;}
+  .grade-A{color:var(--teal);} .grade-Bplus{color:var(--teal);} .grade-B{color:var(--bronze);}
+  .flag{
+    margin-top:14px;padding:10px 12px;background:#F7E9E4;border:1px solid #E3B9A8;border-radius:10px;
+    font-size:12.5px;color:var(--brick);font-weight:600;
+  }
+
+  /* ---------- CHAT ---------- */
+  .chat-shell{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    display:flex;flex-direction:column;height:520px;overflow:hidden;
+  }
+  .chat-log{flex:1;overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:14px;}
+  .bubble{
+    max-width:80%;padding:12px 15px;border-radius:14px;font-size:14.5px;line-height:1.7;white-space:pre-wrap;
+  }
+  .bubble.ai{align-self:flex-start;background:var(--white);border:1px solid var(--line);border-start-start-radius:4px;}
+  .bubble.user{align-self:flex-end;background:var(--navy);color:var(--white);border-start-end-radius:4px;}
+  .bubble.system{align-self:center;background:var(--bronze-soft);color:#5b4526;font-size:12.5px;border-radius:10px;}
+  .bubble.typing{align-self:flex-start;display:flex;gap:5px;padding:14px 16px;background:var(--white);border:1px solid var(--line);}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--ink-soft);animation:blink 1.2s infinite ease-in-out;}
+  .dot:nth-child(2){animation-delay:.2s;} .dot:nth-child(3){animation-delay:.4s;}
+  @keyframes blink{0%,80%,100%{opacity:.25;} 40%{opacity:1;}}
+
+  .chat-input{
+    display:flex;gap:10px;padding:14px;border-top:1px solid var(--line);background:var(--white);
+  }
+  .chat-input input{
+    flex:1;border:1px solid var(--line);border-radius:10px;padding:11px 14px;font-size:14.5px;
+    font-family:inherit;background:var(--paper);
+  }
+  .chat-input input:focus{border-color:var(--navy);outline:none;}
+  .send-btn{
+    background:var(--navy);color:var(--white);border:none;border-radius:10px;padding:0 20px;font-weight:700;font-size:14px;
+    transition:.15s;
+  }
+  .send-btn:hover{background:var(--navy-2);}
+  .send-btn:disabled{opacity:.45;cursor:not-allowed;}
+
+  /* ---------- STEPPER ---------- */
+  .stepper-wrap{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin-bottom:18px;
+  }
+  .stepper-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .stepper-top .concept{font-weight:700;color:var(--navy);font-size:15px;}
+  .stepper-top .phase{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 10px;border-radius:99px;
+    background:var(--teal-soft);color:var(--teal);
+  }
+  .stepper{display:flex;align-items:center;}
+  .step-node{
+    width:30px;height:30px;border-radius:50%;border:2px solid var(--line);background:var(--white);
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--ink-soft);
+    font-family:'IBM Plex Mono',monospace;flex-shrink:0;transition:.25s;
+  }
+  .step-node.done{background:var(--teal);border-color:var(--teal);color:var(--white);}
+  .step-node.current{border-color:var(--navy);color:var(--navy);box-shadow:0 0 0 4px var(--bronze-soft);}
+  .step-line{flex:1;height:2px;background:var(--line);margin:0 4px;position:relative;}
+  .step-line .fill{position:absolute;inset-inline-start:0;top:0;bottom:0;background:var(--teal);width:0%;transition:width .35s;}
+
+  .stamp{
+    display:inline-flex;align-items:center;gap:8px;margin-top:16px;padding:10px 14px;
+    border:2px dashed var(--bronze);border-radius:10px;color:var(--bronze);font-weight:800;font-size:13px;
+    background:var(--bronze-soft);animation:pop .4s ease;
+  }
+  @keyframes pop{0%{transform:scale(.8);opacity:0;}70%{transform:scale(1.05);}100%{transform:scale(1);opacity:1;}}
+
+  .starter{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;padding:34px 28px;text-align:center;
+  }
+  .starter h3{font-size:19px;margin-bottom:8px;}
+  .starter p{color:var(--ink-soft);font-size:14px;max-width:44ch;margin:0 auto 22px;}
+  .starter-form{display:flex;gap:10px;max-width:440px;margin:0 auto;}
+  .starter-form input{
+    flex:1;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-family:inherit;font-size:14.5px;
+  }
+  .starter-form button{
+    background:var(--navy);color:var(--white);border:none;border-radius:10px;padding:0 22px;font-weight:700;
+  }
+  .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:16px;}
+  .chip{
+    font-size:12.5px;padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--white);
+    color:var(--ink-soft);cursor:pointer;
+  }
+  .chip:hover{border-color:var(--teal);color:var(--teal);}
+  .chip.active-chip{background:var(--navy);color:var(--white);border-color:var(--navy);}
+
+  .section-bind-note{
+    background:var(--teal-soft);border:1px solid var(--teal);border-radius:10px;padding:10px 14px;
+    font-size:12.5px;color:#1f4a45;margin:-8px 0 18px;
+  }
+
+  /* ---------- FACULTY ---------- */
+  .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin:22px 0 26px;}
+  .stat-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;}
+  .stat-card .num{font-family:'Tajawal',sans-serif;font-weight:900;font-size:30px;color:var(--navy);}
+  .stat-card .lbl{font-size:12.5px;color:var(--ink-soft);margin-top:4px;}
+
+  .section-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:22px;}
+  .section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px;}
+  .section-head h4{font-size:16px;color:var(--navy);}
+  .section-head p{margin:4px 0 0;font-size:13px;color:var(--ink-soft);}
+  .quiz-btn{
+    background:var(--bronze);color:var(--white);border:none;border-radius:10px;padding:9px 16px;font-size:13.5px;
+    font-weight:700;white-space:nowrap;
+  }
+  .quiz-btn:disabled{opacity:.5;}
+  .question-list{margin-top:16px;border-top:1px solid var(--line);}
+  .q-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:13px 0;border-bottom:1px solid var(--line);}
+  .q-row .qtext{font-size:14px;color:var(--ink);max-width:70ch;}
+  .q-row .src{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);margin-top:4px;}
+  .quiz-output{
+    margin-top:16px;padding:16px 18px;background:var(--white);border:1px solid var(--line);border-radius:12px;
+    font-size:14px;line-height:1.85;white-space:pre-wrap;
+  }
+
+  .fac-split{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;}
+  @media (max-width:820px){.fac-split{grid-template-columns:1fr;}}
+  .concept-list{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;}
+  .concept-row{
+    display:flex;justify-content:space-between;align-items:center;padding:15px 18px;border-bottom:1px solid var(--line);
+    cursor:pointer;transition:.15s;
+  }
+  .concept-row:last-child{border-bottom:none;}
+  .concept-row:hover, .concept-row.active{background:var(--teal-soft);}
+  .concept-row .name{font-weight:700;font-size:14.5px;color:var(--navy);}
+  .concept-row .meta{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  .count-badge{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--navy);color:var(--white);
+    padding:3px 10px;border-radius:99px;flex-shrink:0;margin-inline-start:10px;
+  }
+  .empty{padding:30px 20px;text-align:center;color:var(--ink-soft);font-size:13.5px;}
+
+  .suggestion-panel{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;min-height:200px;
+  }
+  .suggestion-panel h4{font-size:15px;color:var(--navy);margin-bottom:12px;}
+  .suggestion-body{font-size:14px;line-height:1.85;color:var(--ink);white-space:pre-wrap;}
+  .suggestion-placeholder{color:var(--ink-soft);font-size:13.5px;text-align:center;padding:40px 10px;}
+  .gen-btn{
+    background:var(--teal);color:var(--white);border:none;border-radius:10px;padding:9px 16px;font-size:13.5px;
+    font-weight:700;margin-top:14px;
+  }
+  .gen-btn:disabled{opacity:.5;}
+
+  .footer-note{margin:40px 0 60px;font-size:12.5px;color:var(--ink-soft);text-align:center;}
+
+  /* ---------- levels / intent / policy / sandbox / lecture ---------- */
+  .level-badge{
+    display:inline-flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;
+    padding:5px 11px;border-radius:99px;background:var(--navy);color:var(--white);white-space:nowrap;
+  }
+  .info-toggle{
+    background:none;border:none;color:var(--teal);font-size:12.5px;font-weight:700;text-decoration:underline;
+    padding:0;margin:2px 0 18px;display:inline-block;
+  }
+  .info-panel{
+    background:var(--teal-soft);border:1px solid var(--teal);border-radius:12px;padding:16px 18px;margin:-6px 0 20px;
+    font-size:13px;color:#1f4a45;
+  }
+  .info-panel ul{margin:8px 0 0;padding-inline-start:20px;}
+  .info-panel li{margin-bottom:5px;}
+  .privacy-note{
+    display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-soft);padding:8px 14px 0;
+  }
+
+  .bubble.policy{
+    align-self:flex-start;background:#FDECE7;border:1.5px solid var(--brick);color:#6e2c1c;
+    border-start-start-radius:4px;
+  }
+  .bubble.policy .p-tag{
+    display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:800;color:var(--brick);
+    margin-bottom:6px;letter-spacing:.02em;
+  }
+
+  .sandbox-box{
+    margin-top:14px;padding:14px 16px;border-radius:12px;border:1.5px dashed var(--bronze);background:#FBF3E4;
+  }
+  .sandbox-box.approved{border:1.5px solid var(--teal);background:var(--teal-soft);}
+  .sandbox-tag{
+    display:inline-flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+    font-weight:800;padding:3px 9px;border-radius:99px;background:var(--bronze);color:var(--white);margin-bottom:10px;
+  }
+  .sandbox-tag.approved{background:var(--teal);}
+  .approve-btn{
+    background:var(--navy);color:var(--white);border:none;border-radius:9px;padding:8px 15px;font-size:12.5px;
+    font-weight:700;margin-top:12px;
+  }
+  .approved-note{font-size:11.5px;color:var(--teal);font-weight:700;margin-top:10px;}
+
+  .action-log{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin-top:22px;}
+  .action-log h4{font-size:15px;color:var(--navy);margin-bottom:12px;}
+  .log-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .log-row:last-child{border-bottom:none;}
+  .log-row .ts{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);white-space:nowrap;}
+
+  /* ---------- BILINGUAL (AR/EN) ---------- */
+  .langbtn{
+    font-weight:700;
+    background:var(--navy);
+    color:var(--white);
+    border:1px solid var(--navy);
+  }
+  .langbtn:hover{background:var(--navy-2);border-color:var(--navy-2);}
+  [dir="ltr"] .role-card:hover .role-go .arrow{transform:translateX(4px);}
+  [dir="ltr"] body{letter-spacing:0;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="wordmark"><span class="seal">AI</span> EDU AI</div>
+    <div class="topbar-actions" id="topbarActions"></div>
+  </div>
+</div>
+<div class="shell" id="app"></div>
+
+<script>
+/* ---------------- MOCK DATABASES (قواعد البيانات الوهمية لتسجيل الدخول) ---------------- */
+const MOCK_USERS = [
+  { uid: '442109981', pass: '123456', name: 'أحمد عبدالله', major: 'بكالوريوس علوم الحاسب', level: 'المستوى الخامس' },
+  { uid: '442109982', pass: '654321', name: 'سارة العتيبي', major: 'بكالوريوس هندسة البرمجيات', level: 'المستوى السادس' }
+];
+
+const MOCK_FACULTY = [
+  { name: 'د. سلطان الحربي', pass: '111111' },
+  { name: 'د. نورة العتيبي', pass: '222222' },
+  { name: 'د. منى القحطاني', pass: '333333' }
+];
+
+/* ---------------- COMPLIANCE KNOWLEDGE BASE (الأنظمة الرسمية: سدايا SDAIA / حماية البيانات الشخصية PDPL / NDMO) ---------------- */
+const SDAIA_COMPLIANCE_KB = {
+  "sdaia_overview": {
+    "role": "SDAIA is the competent authority in the Kingdom of Saudi Arabia for data and AI, responsible for driving the national agenda and enforcing the Personal Data Protection Law (PDPL).",
+    "official_website": "https://sdaia.gov.sa/"
+  },
+  "pdpl_regulations": {
+    "consent": "Personal data may not be processed or collected without the explicit consent of the data subject.",
+    "data_subject_rights": "Data subjects have the right to be informed, the right to access their data, the right to request correction, and the right to request destruction of their personal data.",
+    "data_localization": "Personal data must be stored and processed within the geographical boundaries of the Kingdom of Saudi Arabia to ensure digital sovereignty. Transferring data outside the Kingdom requires strict compliance with SDAIA's conditions.",
+    "official_text": "PDPL was issued by Royal Decree No. M/19 of 16 September 2021 and amended by Royal Decree No. M/148 of 27 March 2023. It came into force on 14 September 2023, with a one-year grace period for full compliance ending 14 September 2024."
+  },
+  "pdpl_enforcement": {
+    "breach_notification": "Controllers must notify SDAIA and affected individuals promptly when a personal data breach risks harm.",
+    "penalties": "Violations may attract administrative fines of up to SAR 5,000,000 (potentially doubled for repeat offences). Unlawful disclosure or publication of sensitive personal data intended to cause harm or for personal gain may attract imprisonment of up to two years and/or fines of up to SAR 3,000,000. Unlawful transfer of personal data outside the Kingdom may attract imprisonment of up to one year and/or fines of up to SAR 1,000,000."
+  },
+  "ndmo_framework": {
+    "role": "The National Data Management Office (NDMO) is a sub-entity of SDAIA established in 2019. It develops, implements and supervises plans, policies and controls that enable government entities to govern data and protect personal and sensitive data.",
+    "data_classification": "Data must be classified into four levels of sensitivity: Public, Restricted, Confidential, and Secret.",
+    "data_sharing": "Sharing personal data between entities is strictly governed by data sharing agreements complying with NDMO national standards.",
+    "standards": "The National Data Management and Personal Data Protection Standards cover 15 domains of data management with 77 controls and 191 compliance specifications, and apply to all Saudi public entities and their business partners handling government data."
+  },
+  "national_ai_ethics": {
+    "principles": "AI systems must strictly adhere to SDAIA's AI Ethics Principles: Fairness, Privacy & Security, Humanity, Transparency & Explainability, Accountability & Responsibility, and Reliability & Safety.",
+    "automated_decisions": "AI systems must not make fully automated decisions that negatively impact individuals' legal rights (such as academic dismissal or unenrollment) without human oversight.",
+    "risk_tiers": "The AI Ethics Framework classifies AI systems into four risk tiers: little, limited, high, and unacceptable risk, and requires human oversight and redress mechanisms for high-risk systems."
+  },
+  "national_ai_risk_framework": {
+    "launch": "SDAIA launched the National AI Risk Management Framework (July 2026) as a unified national methodology to identify, assess, treat and monitor AI risks for government and private entities.",
+    "official_link": "https://sdaia.gov.sa/ar/MediaCenter/KnowledgeCenter/ResearchLibrary/ExecutiveSummaryAr.pdf"
+  },
+  "open_data": {
+    "policy": "Open data is a defined set of public information that is machine-readable and made available to the public freely and without restrictions, governed by the National Data Management and Personal Data Protection framework."
+  },
+  "sources": [
+    "https://sdaia.gov.sa/ (SDAIA official website)",
+    "https://sdaia.gov.sa/en/Research/Pages/DataProtection.aspx (SDAIA - Personal Data Protection / PDPL)",
+    "https://dgp.sdaia.gov.sa/wps/portal/pdp/ (SDAIA National Data Governance Platform - PDP)",
+    "https://laws.boe.gov.sa/BoeLaws/Laws/LawDetails/b7cfae89-828e-4994-b167-adaa00e37188/1 (Official Gazette / Umm Al-Qura - PDPL full Arabic text)",
+    "https://sdaia.gov.sa/en/Sectors/Ndmo/Pages/default.aspx (SDAIA - National Data Management Office NDMO)",
+    "https://sdaia.gov.sa/ndmo/Files/PoliciesEn001.pdf (NDMO - Data Management and Personal Data Protection Standards - EN)",
+    "https://sdaia.gov.sa/ndmo/Files/PoliciesAr.pdf (NDMO - Data Management and Personal Data Protection Standards - AR)",
+    "https://sdaia.gov.sa/en/SDAIA/about/Documents/ai-principles.pdf (SDAIA - AI Ethics Principles - EN)",
+    "https://sdaia.gov.sa/ar/SDAIA/about/Documents/ai-principles.pdf (SDAIA - AI Ethics Principles - AR)",
+    "https://sdaia.gov.sa/ar/MediaCenter/KnowledgeCenter/ResearchLibrary/ExecutiveSummaryAr.pdf (SDAIA - National AI Risk Management Framework)",
+    "https://dga.gov.sa/ar/AI-Ethics-Principles (Digital Government Authority - AI Ethics Principles)",
+    "https://my.gov.sa/en/content/information-policy (GOV.SA - Freedom of Information & Open Data policies)"
+  ]
+};
+
+/* ---------------- SECTIONS (course/شعبة/topics registry) ---------------- */
+const DIF_TOPICS = ['تعريف النهاية بصريًا','حساب النهايات جبريًا','النهايات من طرف واحد','الاتصال عند نقطة','تعريف المشتقة كنهاية','قواعد الاشتقاق الأساسية','قاعدة السلسلة','التفاضل الضمني','تطبيقات المشتقة: أعظم وأصغر','التكامل غير المحدد: المفهوم','التكامل بالتعويض'];
+const CS_TOPICS = ['المصفوفات أحادية البعد','القوائم المترابطة','إدراج وحذف من القائمة','المكدس (Stack)','الطابور (Queue)','الأشجار الثنائية','اجتياز الأشجار','التكرار (Recursion): الفكرة الأساسية','حالات القاعدة والحالة العامة','التعقيد الزمني Big O'];
+
+const SECTIONS = [
+  { id:'DIF-41', course:'تفاضل وتكامل (١)', number:'41', instructor:'د. سلطان الحربي', topics: DIF_TOPICS },
+  { id:'DIF-52', course:'تفاضل وتكامل (١)', number:'52', instructor:'د. نورة العتيبي', topics: DIF_TOPICS },
+  { id:'CS-12', course:'هياكل البيانات', number:'12', instructor:'د. سلطان الحربي', topics: CS_TOPICS },
+  { id:'CS-23', course:'هياكل البيانات', number:'23', instructor:'د. منى القحطاني', topics: CS_TOPICS },
+];
+function getSection(id){ return SECTIONS.find(s=>s.id===id) || null; }
+function uniqueCourses(){ return [...new Set(SECTIONS.map(s=>s.course))]; }
+function sectionsForCourse(course){ return SECTIONS.filter(s=>s.course===course); }
+function uniqueInstructors(){ return [...new Set(SECTIONS.map(s=>s.instructor))]; }
+
+const state = {
+  view: 'landing',
+  lang: 'ar',
+  pendingProfile: null,
+  studentTab: 'academic',
+  showIntentInfo: false,
+  currentChapterLabel: null,
+  lastEndedLectureForStudent: null,
+  profile: {
+    name:'', uid:'', major:'', level:'',
+    courseName: uniqueCourses()[0], sectionId: sectionsForCourse(uniqueCourses()[0])[0].id,
+    filled:false
+  },
+  academic: { messages: [], loading:false, questionLogged:false },
+  tutor: { messages: [], loading:false, started:false, mode:'open', reviewTopics:[], phase:'assessment', step:1, total:5, concept:'', mastered:false, questionLogged:false },
+  faculty: {
+    instructorName:null, ownedSections:[], currentSectionId:null,
+    conceptLog: [], questionLog: [], actionLog: [], lectures: [], reviewLog: [], loaded:false,
+    selected:null, suggestion:'', suggestionLoading:false, suggestionApproved:false,
+    quizText:'', quizLoading:false, quizApproved:false
+  }
+};
+
+const MOCK_COURSES = [
+  {n:'مدخل إلى البرمجة 1', g:'A', cls:'grade-A'},
+  {n:'أساسيات الرياضيات المتقطعة', g:'B+', cls:'grade-Bplus'},
+  {n:'مقدمة في نظم المعلومات', g:'B', cls:'grade-B'},
+  {n:'مدخل إلى البرمجة 2', g:'غير مكتمل', cls:''},
+];
+
+/* ---------------- i18n (BILINGUAL AR/EN) ---------------- */
+const i18n = {
+  /* chrome / shared */
+  'العودة للرئيسية': '← Home',
+  'تسجيل الدخول': 'Login',
+  'تسجيل خروج': 'Log out',
+  'جاري التحقق...': 'Verifying...',
+  'الرقم الجامعي': 'University ID',
+  'كلمة المرور': 'Password',
+  'عضو هيئة التدريس': 'Faculty Member',
+  'مثال: 442109981': 'e.g., 442109981',
+
+  /* landing */
+  'منصة تعليمية مدعومة بالذكاء الاصطناعي': 'AI-powered educational platform',
+  'مساعد واحد،<br>مسار لكل طرف.': 'One assistant,<br>a path for every role.',
+  'نموذج أولي يوضّح كيف يرافق الذكاء الاصطناعي الطالب في مشكلاته الأكاديمية وفي فهم المقررات الصعبة، وكيف يستفيد دكتور شعبتك بالذات — لا كل الجامعة — من هذه التفاعلات لتحسين شرحه ومراجعتها معك بعد كل محاضرة.': 'A prototype showing how AI accompanies the student through academic issues and hard courses, and how YOUR section instructor — not the whole university — benefits from these interactions to improve their teaching and review with you after every lecture.',
+  'طالب': 'Student',
+  'اسأل عن مشكلة تسجيل مقرر، تعلّم مفهومًا صعبًا خطوة بخطوة، أو راجع آخر محاضرة بالضبط زي ما أخذتوها.': 'Ask about a course-registration issue, learn a hard concept step by step, or review the last lecture exactly as it was taught.',
+  'تسجيل الدخول كطالب': 'Log in as Student',
+  'عضو هيئة تدريس': 'Faculty Member',
+  'حدّد من وين بدأت ووين وقفت بمحاضرتك، وشاهد أسئلة طلاب شعبتك، وولّد أسئلة للنقاش بناءً على فجواتهم الفعلية.': 'Mark where you started and stopped in your lecture, see your section students\u2019 questions, and generate discussion questions based on their real gaps.',
+  'تسجيل الدخول كعضو هيئة تدريس': 'Log in as Faculty Member',
+  'هذا نموذج أولي لأغراض العرض الأكاديمي. البيانات المعروضة تجريبية بالكامل وليست بيانات طلاب حقيقيين. الردود تُولَّد فعليًا عبر نموذج ذكاء اصطناعي حي.': 'This is a prototype for academic demonstration purposes. All displayed data is entirely mock and not real student data. Replies are actually generated by a live AI model.',
+
+  /* student entry */
+  'بوابة الطلاب': 'Student Gateway',
+  'يرجى تسجيل الدخول للوصول إلى النظام الأكاديمي والبلاك بورد.': 'Please log in to access the academic system and Blackboard.',
+  '💡 تلميح للمحكمين (حسابات جاهزة للتجربة):': '💡 Hint for judges (ready test accounts):',
+  'الرقم:': 'ID:',
+  'الباسورد:': 'Password:',
+
+  /* section selection */
+  'اختيار سياق الجلسة': 'Choose Session Context',
+  'مرحبًا،': 'Welcome,',
+  'قبل بدء استخدام المساعد الذكي، اختر المادة والشعبة اللذين تريد التفاعل معهما في هذه الجلسة.': 'Before using the smart assistant, choose the course and section you want to interact with in this session.',
+  'المادة': 'Course',
+  'الشعبة': 'Section',
+  'شعبة': 'Section',
+  'بدء الجلسة': 'Start Session',
+
+  /* student hub */
+  'جلسة طالب': 'Student Session',
+  'المستوى ١ — جلسة فردية': 'Level 1 — Individual Session',
+  'النظام الأكاديمي': 'Academic System',
+  'البلاك بورد': 'Blackboard',
+  'مساعد إرشادي يطّلع على سجلك الأكاديمي ويشرح عقبات التسجيل.': 'An advisory assistant that reviews your academic record and explains registration obstacles.',
+  'معلّم خصوصي يختبر مستواك أولاً، يشرح لك أخطاءك، ثم يعطيك ملخصاً واختباراً تأكيدياً.': 'A personal tutor that first tests your level, explains your mistakes, then gives you a summary and a confirmation test.',
+  ' كيف يعمل هذا المساعد؟': ' How does this assistant work?',
+  'إخفاء': 'Hide',
+  'القواعد اللي يلتزم فيها المساعد (ML Intent):': 'Rules the assistant follows (ML Intent):',
+  'يقرأ فقط السجل الأكاديمي للطالب الحالي — لا يخترع بيانات ولا يطّلع على بيانات غيره.': 'It only reads the current student\u2019s academic record — it never invents data nor accesses others\u2019 data.',
+  'أي عقبة تسجيل يشرحها بالرجوع لسبب حقيقي في السجل، ثم يحيل القرار النهائي لعمادة القبول والتسجيل.': 'It explains any registration obstacle by referring to a real reason in the record, then refers the final decision to the Deanship of Admission and Registration.',
+  'أي طلب لبيانات طالب آخر يُرفض تلقائيًا ويُعلَّم بوسم سياسة (P-node) في الشات.': 'Any request for another student\u2019s data is automatically refused and flagged with a policy tag (P-node) in the chat.',
+  'يبدأ باختبار تحديد مستوى قبل تقديم أي شرح.': 'It starts with a level-assessment test before giving any explanation.',
+  'إذا أخطأت، يراجع الإجابات الخاطئة ويشرحها بتدقيق خطوة بخطوة.': 'If you make mistakes, it reviews the wrong answers and explains them carefully step by step.',
+  'يقدم ملخصاً مفيداً بعد التأكد من فهمك للشرح.': 'It gives a useful summary once it confirms your understanding.',
+  'يطرح سؤالاً تأكيدياً في النهاية للتأكد من إتقانك للمفهوم.': 'It asks a confirmation question at the end to verify you mastered the concept.',
+  'عند إتقان المفهوم، يُسجَّل تلقائيًا لدكتور شعبتك بالذات لتحسين الشرح في المحاضرة القادمة.': 'Once mastered, it is automatically logged for your section instructor to improve the next lecture.',
+  'شعبتك:': 'Your section:',
+  'دكتورك:': 'Instructor:',
+  'وصلتوا حاليًا:': 'Currently at:',
+  '📚 شعبتك:': '📚 Your section:',
+  '📍 وصلتوا حاليًا:': '📍 You are currently at:',
+  'جميع الردود مولّدة حيًا — قد تختلف الصياغة بين محاولة وأخرى.': 'All replies are generated live — wording may vary between attempts.',
+
+  /* profile card */
+  'ملفي الأكاديمي': 'My Academic Profile',
+  'الاسم': 'Name',
+  'التخصص': 'Major',
+  'المستوى': 'Level',
+  'المعدل التراكمي': 'GPA',
+  'غير مكتمل': 'Incomplete',
+  'reg_flag': '⚠ Registration request for "{course}" rejected — missing prerequisite',
+  'نقطة بالمنهج': 'syllabus points',
+
+  /* review card / starter / stepper */
+  '📋 مراجعة محاضرة اليوم متاحة': '📋 Today\u2019s lecture review available',
+  'review_card_text': 'Review our last lecture: from <strong>{from}</strong> to <strong>{to}</strong> ({n} points, exactly as taught).',
+  'ابدأ المراجعة': 'Start Review',
+  'وش الموضوع اللي تبي تفهمه؟': 'What topic would you like to understand?',
+  'اكتب أي مفهوم دراسي، وراح يختبرك المعلم الخصوصي فيه أولاً، ثم يشرح لك بناءً على أخطائك.': 'Type any study concept — the tutor will test you on it first, then explain based on your mistakes.',
+  'مثال: التكامل بالتعويض': 'e.g., Integration by Substitution',
+  'جاري تحديد المفهوم...': 'Determining concept...',
+  'أكملت المراجعة — سُجّلت لدكتور شعبتك': 'Review completed — logged to your instructor',
+  'تم إتقان المفهوم — سُجّل لدكتور شعبتك': 'Concept mastered — logged to your instructor',
+  'اختبار مستوى': 'Level Test',
+  'شرح الأخطاء': 'Explain Mistakes',
+  'ملخص المفهوم': 'Concept Summary',
+  'اختبار تأكيدي': 'Confirmation Test',
+  'مكتمل': 'Completed',
+
+  /* chat */
+  '🛡 P-NODE — سياسة حماية البيانات': '🛡 P-NODE — Data Protection Policy',
+  'ابدأ المحادثة برسالتك أدناه.': 'Start the conversation with your message below.',
+  'اكتب استفسارك الأكاديمي...': 'Type your academic inquiry...',
+  'اكتب إجابتك أو ردك...': 'Type your answer or reply...',
+  'إرسال': 'Send',
+  '🔒 محمي بسياسة حماية بيانات الطلاب — جرّب تسأل عن بيانات طالب آخر': '🔒 Protected by student data-protection policy — try asking about another student\u2019s data',
+
+  /* faculty entry */
+  'بوابة أعضاء هيئة التدريس': 'Faculty Gateway',
+  'تسجيل الدخول للوصول إلى لوحة التحكم الخاصة بشعبتك (البلاك بورد فقط).': 'Log in to access the control panel for your section (Blackboard only).',
+  'دخول اللوحة': 'Enter Dashboard',
+  '💡 تلميح (حسابات جاهزة للتجربة):': '💡 Hint (ready test accounts):',
+
+  /* faculty dashboard */
+  'لوحة عضو هيئة التدريس': 'Faculty Dashboard',
+  'جاري تحميل البيانات...': 'Loading data...',
+  'لوحة عضو هيئة التدريس (البلاك بورد فقط)': 'Faculty Dashboard (Blackboard only)',
+  'المستوى ٢ — شعبتي فقط': 'Level 2 — My Section Only',
+  '🔄 إعادة تحميل بيانات تجريبية': '🔄 Reload Demo Data',
+  'سؤال من طلاب شعبتك': 'Questions from your section',
+  'أعلى تكرار لسؤال واحد': 'Top repeat for a single question',
+  'مفهوم أُتقن بعد شرح إضافي': 'Concepts mastered after extra explanation',
+  'محاضرة مسجَّلة لهذه الشعبة': 'Recorded lectures for this section',
+  'lecture_section': 'Lecture — Section {n}',
+  'حدّد آخر نقطة وصلتوا لها وأنهِ المحاضرة عشان يبني عليها البلاك بورد لطلابك.': 'Mark the last point you reached and end the lecture so Blackboard can build on it for your students.',
+  'حدّد من وين تبدأ اليوم — الافتراضي أول نقطة بعد آخر محاضرة.': 'Choose where to start today — the default is the first point after the last lecture.',
+  'live_since': '🔴 Live since {time} — started from: {topic}',
+  'q_received': '{n} question(s) received during this lecture so far.',
+  '🔄 تحديث': '🔄 Refresh',
+  'وصلتوا اليوم إلى:': 'Reached today to:',
+  '⏹ إنهِ المحاضرة عند هذه النقطة': '⏹ End lecture at this point',
+  'تبدأ اليوم من:': 'Start today from:',
+  '▶ ابدأ محاضرة من هذه النقطة': '▶ Start lecture from this point',
+  'lecture_summary_tag': '📋 Last lecture summary — {date}',
+  'lecture_covered': 'Covered from <strong>{a}</strong> to <strong>{b}</strong>',
+  'reviewed_count': '✅ {n} student(s) completed this lecture\u2019s review',
+  'ما وصل أسئلة موثّقة خلال هذه المحاضرة.': 'No documented questions arrived during this lecture.',
+  'راجعها بداية محاضرتك القادمة قبل ما تبدأ موضوع جديد.': 'Review it at the start of your next lecture before starting a new topic.',
+  'توليد أسئلة لنقاش المحاضرة القادمة': 'Generate Discussion Questions for the Next Lecture',
+  'مجمّعة تلقائيًا من الفجوات المعرفية للطلاب لعرضها عليهم في المحاضرة كأمثلة تطبيقية.': 'Auto-collected from students\u2019 knowledge gaps to present in the lecture as applied examples.',
+  'جاري التوليد...': 'Generating...',
+  'ولّـد أسئلة نقاش بناءً على هذه الفجوات': 'Generate Discussion Questions from These Gaps',
+  'لا توجد أسئلة مسجلة بعد لهذه الشعبة — جرّب فتح جلسة من واجهة الطالب بنفس المقرر والشعبة.': 'No recorded questions for this section yet — try opening a session from the student UI with the same course and section.',
+  '✅ جاهز للعرض في المحاضرة': '✅ Ready to present in lecture',
+  '🧪 معاينة (Sandbox) — لم يُعتمد بعد': '🧪 Preview (Sandbox) — not approved yet',
+  'تم الاعتماد للحفظ — مسجَّل في سجل الإجراءات أدناه.': 'Approved and saved — recorded in the action log below.',
+  'اعتماد للعرض في المحاضرة القادمة': 'Approve for next lecture',
+  'mastered_meta': 'Mastered after extra explanation — {n} {times}',
+  'مرة': 'time',
+  'مرات': 'times',
+  'تكرر': 'repeated',
+  'أُتقن بعد شرح إضافي': 'mastered after extra explanation',
+  'لا توجد أسئلة مسجلة بعد.': 'No recorded questions yet.',
+  'لا توجد مفاهيم مسجلة بعد.': 'No recorded concepts yet.',
+  'لا توجد مفاهيم مكتملة بعد لهذه الشعبة.': 'No mastered concepts for this section yet.',
+  'اقتراح إعادة شرح مفهوم محدد': 'Re-teaching Suggestion for a Specific Concept',
+  'المفهوم المحدد:': 'Selected concept:',
+  '✅ معتمد للمحاضرة': '✅ Approved for lecture',
+  '🧪 معاينة (Sandbox)': '🧪 Preview (Sandbox)',
+  'تم الاعتماد — مسجَّل في سجل الإجراءات أدناه.': 'Approved — recorded in the action log below.',
+  'اعتماد الاقتراح لعرضه بالمحاضرة': 'Approve suggestion for the lecture',
+  'ولّد اقتراح إعادة الشرح': 'Generate Re-teaching Suggestion',
+  'اختر مفهومًا من القائمة لعرض توصية مولّدة بالذكاء الاصطناعي لإعادة شرحه.': 'Select a concept from the list to view an AI-generated recommendation for re-teaching it.',
+  'سجل الإجراءات التحضيرية للمحاضرة': 'Lecture Preparation Action Log',
+  'لا توجد إجراءات معتمدة بعد.': 'No approved actions yet.',
+  'هذه البيانات تتحدّث فعليًا كلما فتح طالب من نفس شعبتك جلسة، راجع محاضرة، أو أكمل فهم مفهوم بالبلاك بورد.': 'This data updates live whenever a student from your section opens a session, reviews a lecture, or masters a concept on Blackboard.',
+  'مراجعة بعد محاضرة': 'Post-Lecture Review',
+  'fac_sec_prefix': 'Section {n} — {m} syllabus points',
+  'هذه القوائم خاصة بهذه الشعبة فقط ولا ترتبط بالنظام الأكاديمي للطلاب.': 'The lists below are specific to this section only and are not linked to the student academic system.',
+
+  /* alerts / system messages */
+  'الرجاء إدخال الرقم الجامعي وكلمة المرور.': 'Please enter your university ID and password.',
+  'الرقم الجامعي أو كلمة المرور غير صحيحة.': 'University ID or password is incorrect.',
+  'الرجاء إدخال كلمة المرور للمتابعة.': 'Please enter the password to continue.',
+  'اسم الدكتور أو كلمة المرور غير صحيحة.': 'Instructor name or password is incorrect.',
+  'تعذر الاتصال بالمساعد. حاول مرة أخرى.': 'Could not connect to the assistant. Please try again.',
+  'تعذر بدء الجلسة. حاول مرة أخرى.': 'Could not start the session. Please try again.',
+  'تعذر بدء المراجعة. حاول مرة أخرى.': 'Could not start the review. Please try again.',
+  'تعذر توليد الاقتراح. حاول مرة أخرى.': 'Could not generate the suggestion. Please try again.',
+  'تعذر توليد الأسئلة. حاول مرة أخرى.': 'Could not generate the questions. Please try again.',
+  'مفهوم غير مسمى': 'Unnamed Concept',
+  'اعتماد اقتراح إعادة شرح لمفهوم: ': 'Approved re-teaching suggestion for concept: ',
+  'اعتماد أسئلة نقاش للمحاضرة مولّدة من فجوات الطلاب': 'Approved discussion questions generated from student gaps',
+  'إنهاء محاضرة شعبة ': 'Ended lecture for section ',
+  'مراجعة محاضرة اليوم': 'Today\u2019s Lecture Review',
+  'review_log_prefix': 'Lecture review: {a} ← {b}',
+  'من 4': 'of 4',
+  'مكتمل': 'Completed',
+
+  /* mock data — users */
+  'أحمد عبدالله': 'Ahmed Abdullah',
+  'سارة العتيبي': 'Sara Al-Otaibi',
+  'بكالوريوس علوم الحاسب': 'Bachelor of Computer Science',
+  'بكالوريوس هندسة البرمجيات': 'Bachelor of Software Engineering',
+  'المستوى الخامس': 'Level 5',
+  'المستوى السادس': 'Level 6',
+  'د. سلطان الحربي': 'Dr. Sultan Al-Harbi',
+  'د. نورة العتيبي': 'Dr. Noura Al-Otaibi',
+  'د. منى القحطاني': 'Dr. Mona Al-Qahtani',
+
+  /* mock data — courses / topics */
+  'مدخل إلى البرمجة 1': 'Introduction to Programming 1',
+  'أساسيات الرياضيات المتقطعة': 'Discrete Mathematics Foundations',
+  'مقدمة في نظم المعلومات': 'Introduction to Information Systems',
+  'مدخل إلى البرمجة 2': 'Introduction to Programming 2',
+  'تفاضل وتكامل (١)': 'Calculus I',
+  'هياكل البيانات': 'Data Structures',
+  'تعريف النهاية بصريًا': 'Limit Definition (Visual)',
+  'حساب النهايات جبريًا': 'Computing Limits Algebraically',
+  'النهايات من طرف واحد': 'One-Sided Limits',
+  'الاتصال عند نقطة': 'Continuity at a Point',
+  'تعريف المشتقة كنهاية': 'Derivative as a Limit',
+  'قواعد الاشتقاق الأساسية': 'Basic Differentiation Rules',
+  'قاعدة السلسلة': 'The Chain Rule',
+  'التفاضل الضمني': 'Implicit Differentiation',
+  'تطبيقات المشتقة: أعظم وأصغر': 'Derivative Applications: Max/Min',
+  'التكامل غير المحدد: المفهوم': 'Indefinite Integrals: Concept',
+  'التكامل بالتعويض': 'Integration by Substitution',
+  'المصفوفات أحادية البعد': 'One-Dimensional Arrays',
+  'القوائم المترابطة': 'Linked Lists',
+  'إدراج وحذف من القائمة': 'List Insertion and Deletion',
+  'المكدس (Stack)': 'Stack',
+  'الطابور (Queue)': 'Queue',
+  'الأشجار الثنائية': 'Binary Trees',
+  'اجتياز الأشجار': 'Tree Traversal',
+  'التكرار (Recursion): الفكرة الأساسية': 'Recursion: The Basic Idea',
+  'حالات القاعدة والحالة العامة': 'Base and General Cases',
+  'التعقيد الزمني Big O': 'Time Complexity (Big O)',
+  'التكرار (Recursion)': 'Recursion',
+
+  /* mock data — seed questions */
+  'ليش قاعدة السلسلة صعبة أفهمها؟': 'Why is the chain rule hard to understand?',
+  'متى نستخدم التفاضل الضمني بالضبط؟': 'When exactly do we use implicit differentiation?',
+  'وش الفرق بين التكامل المحدد وغير المحدد؟': 'What\u2019s the difference between definite and indefinite integrals?',
+  'ليش ما قدرت أسجل مادة هياكل البيانات؟': 'Why couldn\u2019t I register for Data Structures?',
+  'متى يفتح باب إضافة وحذف المواد؟': 'When does the add/drop period open?',
+  'التكرار (Recursion) ليش صعب أستوعبه؟': 'Why is Recursion hard to grasp?',
+  'التعقيد الزمني Big O كيف أحسبه؟': 'How do I compute Big O time complexity?',
+  'وش الفرق بين المكدس والطابور؟': 'What\u2019s the difference between a stack and a queue?',
+  'وش الفرق بين الشجرة الثنائية وشجرة البحث؟': 'What\u2019s the difference between a binary tree and a search tree?'
+};
+
+const dateLocale = () => state.lang === 'en' ? 'en-US' : 'ar-SA';
+const t = (key) => state.lang === 'en' ? (i18n[key] || key) : key;
+const tpl = (key, vars) => {
+  let s = state.lang === 'en' ? (i18n[key] || key) : key;
+  if(vars) for(const k in vars) s = s.split('{'+k+'}').join(String(vars[k]));
+  return s;
+};
+const langInstruction = () => '\n\nIMPORTANT: You must respond entirely in ' + (state.lang === 'en' ? 'English' : 'Arabic') + '.\n';
+function toggleLang(){
+  state.lang = state.lang === 'ar' ? 'en' : 'ar';
+  document.documentElement.setAttribute('lang', state.lang);
+  document.documentElement.setAttribute('dir', state.lang === 'ar' ? 'rtl' : 'ltr');
+  document.title = state.lang === 'ar' ? 'EDU AI — نموذج أولي' : 'EDU AI — Prototype';
+  render();
+}
+
+function formatComplianceKB(kb){
+  return JSON.stringify(kb, null, 2);
+}
+
+function academicSystemPrompt(){
+  const p = state.profile;
+  return `أنت "المساعد الأكاديمي" ضمن منصة EDU AI في جامعة سعودية، ومساعد ذكاء اصطناعي امتثالي. تتحدث فقط بالعربية الفصحى المبسطة بأسلوب رسمي ودود ومختصر (فقرة أو فقرتين كحد أقصى، بدون Markdown ولا رموز زخرفية).
+
+لديك حق الاطلاع على السجل الأكاديمي التالي للطالب الحالي فقط، ولا تخترع معلومات خارج هذا السجل ولا تفترض معلومات عن طلاب آخرين:
+
+الاسم: ${t(p.name)} — الرقم الجامعي: ${p.uid} — التخصص: ${t(p.major)} — المستوى: ${t(p.level)} — المعدل التراكمي: 3.42 ${t('من 4')}
+المقررات: ${t('مدخل إلى البرمجة 1')} (${t('مكتمل')} A) — ${t('أساسيات الرياضيات المتقطعة')} (${t('مكتمل')} B+) — ${t('مقدمة في نظم المعلومات')} (${t('مكتمل')} B) — ${t('مدخل إلى البرمجة 2')} (${t('غير مكتمل')}).
+
+طلب التسجيل الحالي: مقرر "${t('هياكل البيانات')}" — رُفض تلقائيًا. سبب الرفض المسجل في النظام: المتطلب السابق "${t('مدخل إلى البرمجة 2')}" غير مكتمل.
+
+قاعدة المعرفة المرجعية للامتثال (SDAIA / PDPL / NDMO):
+${formatComplianceKB(SDAIA_COMPLIANCE_KB)}
+
+مهمتك:
+1) إذا سأل الطالب عن مشكلة تسجيل أو عقبة أكاديمية، حلّل السجل أعلاه بدقة واشرح السبب الحقيقي بوضوح ومباشرة، وخاطبه باسمه.
+2) اختم أي توضيح أكاديمي دقيق بتوجيه الطالب إلى "عمادة القبول والتسجيل" للحصول على القرار الرسمي النهائي، لأنك مساعد إرشادي فقط وليست لديك صلاحية إدارية.
+3) إذا طُلب منك بيانات عن طلاب آخرين أو معلومات شخصية حساسة، ابدأ ردك فورًا بالوسم التالي بالضبط في أول الرد: [POLICY_BLOCK] ثم مسافة، ثم اعتذر بوضوح موضحًا أن هذا يخالف قانون حماية البيانات الشخصية (PDPL)، ولا تقدم أي تفاصيل. استخدم هذا الوسم فقط في حالة رفض فعلي بسبب الخصوصية، ولا تستخدمه في أي رد آخر.
+4) إن سُئلت عن أمر خارج نطاق هذا السجل، وضّح أنك تستطيع مساعدته في هذه الحالة تحديدًا وانصحه بمراجعة العمادة لما هو أبعد من ذلك.
+
+تعليمات صارمة (Grounded Compliance — Zero Hallucination):
+- أنت مساعد ذكاء اصطناعي متوافق لمنصة EDU AI، وعليك ضمان أن جميع معالجات البيانات والنصائح تلتزم حصريًا بـ [SDAIA_COMPLIANCE_KB] المرفق أعلاه وبالسجل الأكاديمي للطالب فقط.
+- إذا طلب المستخدم إجراءات تنتهك حوكمة توطين البيانات (data localization)، أو مشاركة البيانات (data sharing)، أو قرارات آلية دون إشراف بشري (human oversight)، فاعتذر بأدب واذكر القاعدة المحددة من قانون حماية البيانات الشخصية (PDPL) أو إطار NDMO الواردة في قاعدة المعرفة.
+- ممنوع منعًا باتًا اختراع أو افتراض أو تخمين أي إرشادات قانونية أو أخلاقية؛ اعتمد حصريًا على كائن JSON المرفق أعلاه (Zero Hallucination).${langInstruction()}`;
+}
+
+const TUTOR_SYSTEM_PROMPT = `أنت "المعلم الخصوصي الذكي" داخل نظام البلاك بورد بمنصة EDU AI. دورك مساعدة طالب جامعي سعودي على فهم مفهوم دراسي يعاني فيه، عبر مسار تعليمي دقيق وممنهج، وليس إعطاء إجابات جاهزة.
+
+مسارك الإلزامي خطوة بخطوة:
+المرحلة 1: تحديد المستوى (assessment): ابدأ الجلسة فوراً باختبار قصير (سؤالين أو ثلاثة) حول المفهوم الذي طلبه الطالب لتحديد مستواه، دون تقديم أي شرح مسبق.
+المرحلة 2: تقييم وشرح الأخطاء (explaining): حلل إجابات الطالب. 
+- إذا كانت إجاباته صحيحة بالكامل: أثنِ عليه، وانتقل للمرحلة 4 (التأكيدي).
+- إذا أخطأ: قم بالتركيز على الأسئلة الخاطئة فقط. ابدأ بشرح مفصل ودقيق خطوة بخطوة للجزئية التي لم يفهمها (تفاعل معه ولا تعطه الحل دفعة واحدة).
+المرحلة 3: الملخص (summary): بعد أن يتجاوز مرحلة الشرح وتتأكد من فهمه المبدئي، أعطه ملخصاً قصيراً لأهم نقاط المفهوم.
+المرحلة 4: الاختبار التأكيدي (verification): اطرح سؤالاً جديداً (مختلفاً كلياً عن السابق) للتأكد من فهمه العميق بعد الشرح.
+المرحلة 5: التوجيه النهائي: 
+- إذا أخطأ في التأكيدي: عد للمرحلة 2 (explaining) واشرح بأسلوب مبسط ومختلف.
+- إذا أجاب بشكل صحيح: أنهِ الجلسة بنجاح واستخدم (mastered=true).
+
+مهم جداً جداً: ردك بالكامل يجب أن يكون كائن JSON صالح فقط، بدون أي نص قبله أو بعده وبدون أسوار كود Markdown، بالضبط بهذا الشكل:
+{"message": "النص الذي سيظهر للطالب بالعربية", "phase": "assessment أو explaining أو summary أو verification أو mastered", "step_number": رقم صحيح يمثل المرحلة الحالية من 1 إلى 5, "total_steps_estimate": 5, "concept_title": "اسم مختصر للمفهوم بالعربية", "mastered": true أو false}
+
+أول رسالة من الطالب ستكون اسم المفهوم. ابدأ مباشرة بطرح اختبار تحديد المستوى.`;
+
+function reviewSystemPrompt(topicsList, courseName){
+  const list = topicsList.map((tp,i)=>(i+1)+'. '+t(tp)).join('\n');
+  return `أنت "مساعد المراجعة" في نظام البلاك بورد بمنصة EDU AI، تراجع مع طالب جامعي سعودي محتوى محاضرة انتهت اليوم في مقرر "${t(courseName)||''}"، ولست تشرح مادة جديدة من الصفر.
+
+المحاضرة التي تراجعها غطّت هذه النقاط بالضبط وبهذا الترتيب:
+${list}
+
+منهجك الإلزامي:
+- راجع نقطة واحدة فقط في كل رسالة، بشكل مختصر (تذكير سريع لا شرح من الصفر)، ثم اطرح سؤال استرجاع سريع للتأكد إن الطالب يتذكرها من المحاضرة.
+- إذا أجاب صح انتقل للنقطة التالية بالترتيب (step_number +1). إذا أخطأ أو تردد، ذكّره بالنقطة بجملة أو جملتين إضافيتين ثم أعد السؤال بصياغة أبسط، ولا تعتبرها شرحًا جديدًا بل تذكيرًا، واستخدم phase="explaining" مع إبقاء نفس step_number.
+- لا تخرج عن النقاط المذكورة أعلاه، ولا تضف مواضيع لم تُغطَّ بالمحاضرة.
+- عند تغطية كل النقاط بنجاح، اجعل mastered=true واكتب رسالة ختامية قصيرة تلخص أهم نقطتين من المحاضرة وتهنئه بإنهاء المراجعة، واستخدم phase="mastered".
+
+مهم جدًا جدًا: ردك بالكامل يجب أن يكون كائن JSON صالح فقط، بدون أي نص قبله أو بعده وبدون أسوار كود Markdown، بالضبط بهذا الشكل:
+{"message": "النص الذي سيظهر للطالب بالعربية", "phase": "explaining أو checking أو mastered", "step_number": رقم صحيح يبدأ من 1, "total_steps_estimate": ${topicsList.length}, "concept_title": "مراجعة محاضرة اليوم", "mastered": true أو false}
+
+ابدأ مباشرة بمراجعة النقطة الأولى مع سؤال استرجاع قصير.`;
+}
+
+function suggestionPrompt(concept, courseName){
+  return `أنت خبير تصميم تعليمي. صمم توصية لعضو هيئة تدريس جامعي يدرّس مقرر "${t(courseName)||''}" حول مفهوم بعنوان "${t(concept)}" الذي واجه فيه عدة طلاب صعوبة أثناء جلسات التعلم الذاتي عبر نظام البلاك بورد.
+اكتب بالعربية الفصحى المبسطة، بدون Markdown، ثلاث فقرات قصيرة مرقمة نصيًا (١، ٢، ٣) بالترتيب التالي:
+١. سبب محتمل مختصر لصعوبة الفهم الشائعة في هذا المفهوم تحديدًا.
+٢. طريقة شرح بديلة تعتمد على مثال أو تشبيه مختلف عن الأسلوب التقليدي، مناسبة لمحاضرة قادمة.
+٣. سؤال تقييمي سريع واحد يمكن طرحه في المحاضرة للتأكد من الاستيعاب.${langInstruction()}`;
+}
+
+function quizPrompt(questionRows, conceptRows, courseName){
+  const qList = questionRows.slice(0,6).map(r => '- ' + t(r[0]) + ' (' + t('تكرر') + ' ' + r[1] + ' ' + t('مرة') + ')').join('\n') || t('لا توجد أسئلة مسجلة بعد.');
+  const cList = conceptRows.slice(0,6).map(r => '- ' + t(r[0]) + ' (' + t('أُتقن بعد شرح إضافي') + ' ' + r[1] + ' ' + t('مرة') + ')').join('\n') || t('لا توجد مفاهيم مسجلة بعد.');
+  return `أنت أستاذ جامعي تدرّس مقرر "${t(courseName)||''}" وتصمم أسئلة نقاش ومراجعة بناءً على بيانات فعلية من مساعد ذكاء اصطناعي تعليمي، توضّح أين يتعثر طلاب شعبتك تحديدًا.
+
+الأسئلة والمواضيع الأكثر تكرارًا من طلاب شعبتك:
+${qList}
+
+المفاهيم التي احتاجت شرحًا إضافيًا حتى أُتقنت:
+${cList}
+
+صمم 4 أسئلة بناءً على هذه الفجوات المعرفية لعرضها ومناقشتها مع الطلاب في المحاضرة القادمة (أسئلة للنقاش والشرح وليست لاختبارهم فعلياً). اكتب بعد كل سؤال الإجابة النموذجية أو نقطة النقاش المستهدفة بين قوسين. اكتب بالعربية الفصحى، بدون Markdown، مرقّمة بالأرقام العربية (١، ٢، ٣، ٤).${langInstruction()}`;
+}
+
+async function callClaude(systemPrompt, history){
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: history
+    })
+  });
+  if(!res.ok) throw new Error('network');
+  const data = await res.json();
+  return (data.content||[]).map(b=>b.text||"").join("\n");
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function nl2br(s){ return escapeHtml(s).replace(/\n/g,'<br>'); }
+
+/* ---------------- SEED DATA (sections + lectures with topic ranges) ---------------- */
+function buildSeedLectures(){
+  const now = Date.now();
+  const day = 86400000;
+  return [
+    { id:'lec_seed_DIF-41', sectionId:'DIF-41', startedAt: now - 2*day, endedAt: now - 2*day + 50*60000, startTopicIdx:5, endTopicIdx:7 },
+    { id:'lec_seed_CS-12', sectionId:'CS-12', startedAt: now - 3*day, endedAt: now - 3*day + 45*60000, startTopicIdx:7, endTopicIdx:9 },
+  ];
+}
+function buildSeedConcepts(){
+  const now = Date.now();
+  const day = 86400000;
+  const entries = [
+    ['قاعدة السلسلة', 4, 6, 'DIF-41', 'lec_seed_DIF-41'],
+    ['التفاضل الضمني', 2, 5, 'DIF-41', 'lec_seed_DIF-41'],
+    ['التكامل بالتعويض', 2, 4, 'DIF-41', null],
+    ['التكرار (Recursion): الفكرة الأساسية', 5, 6, 'CS-12', 'lec_seed_CS-12'],
+    ['التعقيد الزمني Big O', 3, 5, 'CS-12', 'lec_seed_CS-12'],
+    ['المكدس (Stack)', 2, 4, 'CS-12', null],
+    ['الأشجار الثنائية', 2, 3, 'CS-23', null],
+  ];
+  const out = [];
+  entries.forEach(([concept, count, spreadDays, sectionId, lectureId])=>{
+    for(let i=0;i<count;i++){
+      out.push({ concept, ts: now - Math.floor(Math.random()*spreadDays*day), sectionId, lectureId });
+    }
+  });
+  return out.sort((a,b)=>a.ts-b.ts);
+}
+function buildSeedQuestions(){
+  const now = Date.now();
+  const day = 86400000;
+  const entries = [
+    ['ليش قاعدة السلسلة صعبة أفهمها؟', 5, 6, 'tutor', 'DIF-41', 'lec_seed_DIF-41'],
+    ['متى نستخدم التفاضل الضمني بالضبط؟', 3, 5, 'tutor', 'DIF-41', 'lec_seed_DIF-41'],
+    ['وش الفرق بين التكامل المحدد وغير المحدد؟', 2, 4, 'tutor', 'DIF-41', null],
+    ['ليش ما قدرت أسجل مادة هياكل البيانات؟', 6, 7, 'academic', null, null],
+    ['متى يفتح باب إضافة وحذف المواد؟', 3, 6, 'academic', null, null],
+    ['التكرار (Recursion) ليش صعب أستوعبه؟', 5, 6, 'tutor', 'CS-12', 'lec_seed_CS-12'],
+    ['التعقيد الزمني Big O كيف أحسبه؟', 4, 5, 'tutor', 'CS-12', 'lec_seed_CS-12'],
+    ['وش الفرق بين المكدس والطابور؟', 3, 4, 'tutor', 'CS-12', null],
+    ['وش الفرق بين الشجرة الثنائية وشجرة البحث؟', 2, 3, 'tutor', 'CS-23', null],
+  ];
+  const out = [];
+  entries.forEach(([question, count, spreadDays, source, sectionId, lectureId])=>{
+    for(let i=0;i<count;i++){
+      out.push({ question, source, ts: now - Math.floor(Math.random()*spreadDays*day), sectionId, lectureId });
+    }
+  });
+  return out.sort((a,b)=>a.ts-b.ts);
+}
+async function seedFacultyDataIfEmpty(){
+  if(state.faculty.conceptLog.length === 0){
+    const seed = buildSeedConcepts();
+    try{ await window.storage.set('concept-log', JSON.stringify(seed), true); }catch(e){}
+    state.faculty.conceptLog = seed;
+  }
+  if(state.faculty.questionLog.length === 0){
+    const seed = buildSeedQuestions();
+    try{ await window.storage.set('question-log', JSON.stringify(seed), true); }catch(e){}
+    state.faculty.questionLog = seed;
+  }
+  if(state.faculty.lectures.length === 0){
+    const seed = buildSeedLectures();
+    try{ await window.storage.set('lectures', JSON.stringify(seed), true); }catch(e){}
+    state.faculty.lectures = seed;
+  }
+}
+async function resetFacultyDemoData(){
+  const c = buildSeedConcepts();
+  const q = buildSeedQuestions();
+  const l = buildSeedLectures();
+  try{ await window.storage.set('concept-log', JSON.stringify(c), true); }catch(e){}
+  try{ await window.storage.set('question-log', JSON.stringify(q), true); }catch(e){}
+  try{ await window.storage.set('lectures', JSON.stringify(l), true); }catch(e){}
+  try{ await window.storage.set('review-log', JSON.stringify([]), true); }catch(e){}
+  state.faculty.conceptLog = c;
+  state.faculty.questionLog = q;
+  state.faculty.lectures = l;
+  state.faculty.reviewLog = [];
+  state.faculty.selected = null;
+  state.faculty.suggestion = '';
+  state.faculty.suggestionApproved = false;
+  state.faculty.quizText = '';
+  state.faculty.quizApproved = false;
+  render();
+}
+
+async function loadFacultyLogs(){
+  try{
+    const r = await window.storage.get('concept-log', true);
+    state.faculty.conceptLog = r && r.value ? JSON.parse(r.value) : [];
+  }catch(e){ state.faculty.conceptLog = []; }
+  try{
+    const r2 = await window.storage.get('question-log', true);
+    state.faculty.questionLog = r2 && r2.value ? JSON.parse(r2.value) : [];
+  }catch(e){ state.faculty.questionLog = []; }
+  try{
+    const r3 = await window.storage.get('action-log', true);
+    state.faculty.actionLog = r3 && r3.value ? JSON.parse(r3.value) : [];
+  }catch(e){ state.faculty.actionLog = []; }
+  try{
+    const r4 = await window.storage.get('lectures', true);
+    state.faculty.lectures = r4 && r4.value ? JSON.parse(r4.value) : [];
+  }catch(e){ state.faculty.lectures = []; }
+  try{
+    const r5 = await window.storage.get('review-log', true);
+    state.faculty.reviewLog = r5 && r5.value ? JSON.parse(r5.value) : [];
+  }catch(e){ state.faculty.reviewLog = []; }
+  await seedFacultyDataIfEmpty();
+  state.faculty.loaded = true;
+}
+async function pushActionLog(label, extra){
+  try{
+    let arr = [];
+    try{
+      const r = await window.storage.get('action-log', true);
+      arr = r && r.value ? JSON.parse(r.value) : [];
+    }catch(e){ arr = []; }
+    arr.push({ label, extra: extra || '', ts: Date.now() });
+    await window.storage.set('action-log', JSON.stringify(arr), true);
+    return arr;
+  }catch(e){ return null; }
+}
+async function getActiveLectureId(sectionId){
+  if(!sectionId) return null;
+  try{
+    const r = await window.storage.get('lectures', true);
+    const arr = r && r.value ? JSON.parse(r.value) : [];
+    const active = arr.find(l=>l.sectionId===sectionId && !l.endedAt);
+    return active ? active.id : null;
+  }catch(e){ return null; }
+}
+async function pushConceptLog(concept, sectionId){
+  const lectureId = await getActiveLectureId(sectionId);
+  try{
+    let arr = [];
+    try{
+      const r = await window.storage.get('concept-log', true);
+      arr = r && r.value ? JSON.parse(r.value) : [];
+    }catch(e){ arr = []; }
+    arr.push({ concept: concept || t('مفهوم غير مسمى'), ts: Date.now(), sectionId: sectionId||null, lectureId });
+    await window.storage.set('concept-log', JSON.stringify(arr), true);
+  }catch(e){}
+}
+async function pushQuestionLog(question, source, sectionId){
+  const lectureId = await getActiveLectureId(sectionId);
+  try{
+    let arr = [];
+    try{
+      const r = await window.storage.get('question-log', true);
+      arr = r && r.value ? JSON.parse(r.value) : [];
+    }catch(e){ arr = []; }
+    arr.push({ question: (question||'').trim(), source, ts: Date.now(), sectionId: sectionId||null, lectureId });
+    await window.storage.set('question-log', JSON.stringify(arr), true);
+  }catch(e){}
+}
+async function pushReviewLog(sectionId){
+  try{
+    let arr = [];
+    try{
+      const r = await window.storage.get('review-log', true);
+      arr = r && r.value ? JSON.parse(r.value) : [];
+    }catch(e){ arr = []; }
+    arr.push({ sectionId: sectionId||null, ts: Date.now() });
+    await window.storage.set('review-log', JSON.stringify(arr), true);
+  }catch(e){}
+}
+async function loadSectionProgress(){
+  const sec = getSection(state.profile.sectionId);
+  try{
+    const r = await window.storage.get('lectures', true);
+    const arr = r && r.value ? JSON.parse(r.value) : [];
+    const ended = arr.filter(l=>l.sectionId===state.profile.sectionId && l.endedAt).sort((a,b)=>b.endedAt-a.endedAt);
+    state.lastEndedLectureForStudent = ended[0] || null;
+    if(sec && ended[0] && typeof ended[0].endTopicIdx === 'number'){
+      state.currentChapterLabel = sec.topics[ended[0].endTopicIdx] || null;
+    } else {
+      state.currentChapterLabel = null;
+    }
+  }catch(e){
+    state.lastEndedLectureForStudent = null;
+    state.currentChapterLabel = null;
+  }
+  render();
+}
+
+/* ---------------- RENDER ---------------- */
+function render(){
+  const app = document.getElementById('app');
+  const actions = document.getElementById('topbarActions');
+  actions.innerHTML = '';
+  if(state.view !== 'landing'){
+    actions.innerHTML += `<button class="backbtn" onclick="goLanding()">${t('العودة للرئيسية')}</button>`;
+  }
+  actions.innerHTML += `<button class="backbtn langbtn" onclick="toggleLang()">${state.lang === 'ar' ? '🌐 English' : '🌐 عربي'}</button>`;
+
+  if(state.view === 'landing') app.innerHTML = renderLanding();
+  else if(state.view === 'studentEntry') app.innerHTML = renderStudentEntry();
+  else if(state.view === 'studentSection') app.innerHTML = renderStudentSection();
+  else if(state.view === 'student') app.innerHTML = renderStudent();
+  else if(state.view === 'facultyEntry') app.innerHTML = renderFacultyEntry();
+  else if(state.view === 'faculty') app.innerHTML = renderFaculty();
+
+  attachHandlers();
+}
+
+function renderLanding(){
+  return `
+  <section class="hero">
+    <div class="hero-eyebrow">${t('منصة تعليمية مدعومة بالذكاء الاصطناعي')}</div>
+    <h1>${t('مساعد واحد،<br>مسار لكل طرف.')}</h1>
+    <p class="lead">${t('نموذج أولي يوضّح كيف يرافق الذكاء الاصطناعي الطالب في مشكلاته الأكاديمية وفي فهم المقررات الصعبة، وكيف يستفيد دكتور شعبتك بالذات — لا كل الجامعة — من هذه التفاعلات لتحسين شرحه ومراجعتها معك بعد كل محاضرة.')}</p>
+    <div class="role-grid">
+      <div class="role-card" onclick="goStudent()">
+        <div class="role-icon">👤</div>
+        <h3>${t('طالب')}</h3>
+        <p>${t('اسأل عن مشكلة تسجيل مقرر، تعلّم مفهومًا صعبًا خطوة بخطوة، أو راجع آخر محاضرة بالضبط زي ما أخذتوها.')}</p>
+        <span class="role-go">${t('تسجيل الدخول كطالب')} <span class="arrow">→</span></span>
+      </div>
+      <div class="role-card" onclick="goFaculty()">
+        <div class="role-icon">🎓</div>
+        <h3>${t('عضو هيئة تدريس')}</h3>
+        <p>${t('حدّد من وين بدأت ووين وقفت بمحاضرتك، وشاهد أسئلة طلاب شعبتك، وولّد أسئلة للنقاش بناءً على فجواتهم الفعلية.')}</p>
+        <span class="role-go">${t('تسجيل الدخول كعضو هيئة تدريس')} <span class="arrow">→</span></span>
+      </div>
+    </div>
+    <div class="disclaimer">${t('هذا نموذج أولي لأغراض العرض الأكاديمي. البيانات المعروضة تجريبية بالكامل وليست بيانات طلاب حقيقيين. الردود تُولَّد فعليًا عبر نموذج ذكاء اصطناعي حي.')}</div>
+  </section>`;
+}
+
+function renderStudentEntry(){
+  return `
+  <div class="entry-wrap">
+    <div class="entry-card">
+      <div class="kicker">${t('بوابة الطلاب')}</div>
+      <h2>${t('تسجيل الدخول')}</h2>
+      <p class="sub">${t('يرجى تسجيل الدخول للوصول إلى النظام الأكاديمي والبلاك بورد.')}</p>
+      
+      <div class="field">
+        <label>${t('الرقم الجامعي')}</label>
+        <input id="fUid" type="text" placeholder="${t('مثال: 442109981')}" />
+      </div>
+      <div class="field">
+        <label>${t('كلمة المرور')}</label>
+        <input id="fPass" type="password" placeholder="••••••••" />
+      </div>
+
+      <button class="entry-submit" id="studentLoginBtn" onclick="submitProfile()">${t('تسجيل الدخول')}</button>
+      
+      <div class="entry-note">
+        <strong>${t('💡 تلميح للمحكمين (حسابات جاهزة للتجربة):')}</strong><br>
+        ${t('الرقم:')} <code>442109981</code> — ${t('الباسورد:')} <code>123456</code><br>
+        ${t('الرقم:')} <code>442109982</code> — ${t('الباسورد:')} <code>654321</code>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderStudentSection(){
+  const p = state.pendingProfile || {};
+  const course = uniqueCourses()[0];
+  return `
+  <div class="entry-wrap">
+    <div class="entry-card">
+      <div class="kicker">${t('اختيار سياق الجلسة')}</div>
+      <h2>${t('مرحبًا،')} ${escapeHtml(t(p.name || ''))}</h2>
+      <p class="sub">${t('قبل بدء استخدام المساعد الذكي، اختر المادة والشعبة اللذين تريد التفاعل معهما في هذه الجلسة.')}</p>
+      <div class="field">
+        <label>${t('المادة')}</label>
+        <select id="pCourse" onchange="onPendingCourseChange()">
+          ${uniqueCourses().map(c=>`<option value="${escapeHtml(c)}" ${course===c?'selected':''}>${escapeHtml(t(c))}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>${t('شعبة')}</label>
+        <select id="pSection">
+          ${sectionsForCourse(course).map(s=>`<option value="${s.id}">${t('شعبة')} ${s.number} — ${escapeHtml(t(s.instructor))}</option>`).join('')}
+        </select>
+      </div>
+      <button class="entry-submit" onclick="submitSectionChoice()">${t('بدء الجلسة')}</button>
+    </div>
+  </div>`;
+}
+
+function renderStudent(){
+  if(!state.profile.filled){ state.view='studentEntry'; return renderStudentEntry(); }
+  const isAcademic = state.studentTab === 'academic';
+  const sec = getSection(state.profile.sectionId);
+  const intentBullets = isAcademic ? [
+    t('يقرأ فقط السجل الأكاديمي للطالب الحالي — لا يخترع بيانات ولا يطّلع على بيانات غيره.'),
+    t('أي عقبة تسجيل يشرحها بالرجوع لسبب حقيقي في السجل، ثم يحيل القرار النهائي لعمادة القبول والتسجيل.'),
+    t('أي طلب لبيانات طالب آخر يُرفض تلقائيًا ويُعلَّم بوسم سياسة (P-node) في الشات.')
+  ] : [
+    t('يبدأ باختبار تحديد مستوى قبل تقديم أي شرح.'),
+    t('إذا أخطأت، يراجع الإجابات الخاطئة ويشرحها بتدقيق خطوة بخطوة.'),
+    t('يقدم ملخصاً مفيداً بعد التأكد من فهمك للشرح.'),
+    t('يطرح سؤالاً تأكيدياً في النهاية للتأكد من إتقانك للمفهوم.'),
+    t('عند إتقان المفهوم، يُسجَّل تلقائيًا لدكتور شعبتك بالذات لتحسين الشرح في المحاضرة القادمة.')
+  ];
+  return `
+  <div class="subheader">
+    <div>
+      <div class="kicker">${t('جلسة طالب')}</div>
+      <h2>${t('مرحبًا،')} ${escapeHtml(t(state.profile.name))}</h2>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="level-badge">${t('المستوى ١ — جلسة فردية')}</span>
+      <button class="edit-link" onclick="editProfile()">${t('تسجيل خروج')}</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab ${isAcademic?'active':''}" onclick="switchTab('academic')">${t('النظام الأكاديمي')}</button>
+    <button class="tab ${!isAcademic?'active':''}" onclick="switchTab('blackboard')">${t('البلاك بورد')}</button>
+  </div>
+  <p class="tab-desc">${isAcademic ? t('مساعد إرشادي يطّلع على سجلك الأكاديمي ويشرح عقبات التسجيل.') : t('معلّم خصوصي يختبر مستواك أولاً، يشرح لك أخطاءك، ثم يعطيك ملخصاً واختباراً تأكيدياً.')}</p>
+  <button class="info-toggle" onclick="toggleIntentInfo()">${state.showIntentInfo ? t('إخفاء') : 'ℹ' + t(' كيف يعمل هذا المساعد؟')}</button>
+  ${state.showIntentInfo ? `<div class="info-panel"><strong>${t('القواعد اللي يلتزم فيها المساعد (ML Intent):')}</strong><ul>${intentBullets.map(b=>`<li>${b}</li>`).join('')}</ul></div>` : ''}
+  ${isAcademic ? `
+    <div class="split">
+      ${renderProfileCard()}
+      ${renderChat('academic')}
+    </div>
+  ` : `
+    <div class="section-bind-note">📚 ${t('شعبتك:')} <strong>${sec ? escapeHtml(t(sec.course)) + ' — ' + t('شعبة') + ' ' + sec.number : ''}</strong> · ${t('دكتورك:')} <strong>${sec ? escapeHtml(t(sec.instructor)) : ''}</strong>${state.currentChapterLabel ? ` · 📍 ${t('وصلتوا حاليًا:')} <strong>${escapeHtml(t(state.currentChapterLabel))}</strong>` : ''}</div>
+    ${!state.tutor.started ? renderReviewCard() : ''}
+    ${state.tutor.started ? renderStepper() : ''}
+    ${state.tutor.started ? renderChat('tutor') : renderStarter()}
+  `}
+  <div class="footer-note">${t('جميع الردود مولّدة حيًا — قد تختلف الصياغة بين محاولة وأخرى.')}</div>
+  `;
+}
+
+function renderProfileCard(){
+  const p = state.profile;
+  return `
+  <div class="profile-card">
+    <h4>${t('ملفي الأكاديمي')}</h4>
+    <div class="prow"><span class="k">${t('الاسم')}</span><span class="v">${escapeHtml(t(p.name))}</span></div>
+    <div class="prow"><span class="k">${t('الرقم الجامعي')}</span><span class="v mono">${escapeHtml(p.uid)}</span></div>
+    <div class="prow"><span class="k">${t('التخصص')}</span><span class="v">${escapeHtml(t(p.major))}</span></div>
+    <div class="prow"><span class="k">${t('المستوى')}</span><span class="v">${escapeHtml(t(p.level))}</span></div>
+    <div class="prow"><span class="k">${t('المعدل التراكمي')}</span><span class="v">3.42 / 4.00</span></div>
+    ${MOCK_COURSES.map(c=>`<div class="prow"><span class="k">${t(c.n)}</span><span class="v ${c.cls}">${c.g === 'غير مكتمل' ? t(c.g) : c.g}</span></div>`).join('')}
+    <div class="flag">${tpl('reg_flag', { course: t('هياكل البيانات') })}</div>
+  </div>`;
+}
+
+function renderReviewCard(){
+  const sec = getSection(state.profile.sectionId);
+  const lec = state.lastEndedLectureForStudent;
+  if(!sec || !lec || typeof lec.startTopicIdx!=='number' || typeof lec.endTopicIdx!=='number') return '';
+  const range = sec.topics.slice(lec.startTopicIdx, lec.endTopicIdx+1);
+  if(!range.length) return '';
+  return `
+  <div class="sandbox-box approved" style="border-style:solid;margin-bottom:18px;">
+    <span class="sandbox-tag approved">${t('📋 مراجعة محاضرة اليوم متاحة')}</span>
+    <p style="font-size:13.5px;margin:6px 0 10px;">${tpl('review_card_text', { from: escapeHtml(t(range[0])), to: escapeHtml(t(range[range.length-1])), n: range.length })}</p>
+    <button class="approve-btn" onclick="startReview()">${t('ابدأ المراجعة')}</button>
+  </div>`;
+}
+
+function renderStarter(){
+  const tr = state.tutor;
+  return `
+  <div class="starter">
+    <h3>${t('وش الموضوع اللي تبي تفهمه؟')}</h3>
+    <p>${t('اكتب أي مفهوم دراسي، وراح يختبرك المعلم الخصوصي فيه أولاً، ثم يشرح لك بناءً على أخطائك.')}</p>
+    <div class="starter-form">
+      <input id="starterInput" type="text" placeholder="${t('مثال: التكامل بالتعويض')}" ${tr.loading?'disabled':''} />
+      <button onclick="startTutor()" ${tr.loading?'disabled':''}>${t('بدء الجلسة')}</button>
+    </div>
+    <div class="chips">
+      <span class="chip" onclick="quickStart('قاعدة السلسلة')">${t('قاعدة السلسلة')}</span>
+      <span class="chip" onclick="quickStart('التكرار (Recursion)')">${t('التكرار (Recursion)')}</span>
+      <span class="chip" onclick="quickStart('التعقيد الزمني Big O')">${t('التعقيد الزمني Big O')}</span>
+    </div>
+  </div>`;
+}
+
+function renderStepper(){
+  const tr = state.tutor;
+  const total = Math.max(tr.total || 5, tr.step);
+  let nodes = '';
+  for(let i=1;i<=total;i++){
+    const cls = i < tr.step || tr.mastered ? 'done' : (i === tr.step ? 'current' : '');
+    nodes += `<div class="step-node ${cls}">${(i<tr.step||tr.mastered) ? '✓' : i}</div>`;
+    if(i < total){
+      const fillPct = i < tr.step || tr.mastered ? 100 : 0;
+      nodes += `<div class="step-line"><div class="fill" style="width:${fillPct}%"></div></div>`;
+    }
+  }
+  return `
+  <div class="stepper-wrap">
+    <div class="stepper-top">
+      <span class="concept">${tr.mode==='review' ? '📋 ' : '📘 '}${tr.concept ? escapeHtml(t(tr.concept)) : t('جاري تحديد المفهوم...')}</span>
+      <span class="phase">${phaseLabel(tr.phase)}</span>
+    </div>
+    <div class="stepper">${nodes}</div>
+    ${tr.mastered ? `<div class="stamp">✓ ${tr.mode==='review' ? t('أكملت المراجعة — سُجّلت لدكتور شعبتك') : t('تم إتقان المفهوم — سُجّل لدكتور شعبتك')}</div>` : ''}
+  </div>`;
+}
+
+function phaseLabel(p){
+  const map = {
+    assessment:'اختبار مستوى',
+    explaining:'شرح الأخطاء',
+    summary:'ملخص المفهوم',
+    verification:'اختبار تأكيدي',
+    mastered:'مكتمل'
+  };
+  return t(map[p] || p || '');
+}
+
+function renderChat(key){
+  const data = state[key];
+  const bubbles = data.messages.map(m=>{
+    if(m.role==='system') return `<div class="bubble system">${nl2br(m.text)}</div>`;
+    if(m.role==='policy') return `<div class="bubble policy"><span class="p-tag">${t('🛡 P-NODE — سياسة حماية البيانات')}</span>${nl2br(m.text)}</div>`;
+    return `<div class="bubble ${m.role}">${nl2br(m.text)}</div>`;
+  }).join('');
+  return `
+  <div class="chat-shell">
+    <div class="chat-log" id="log-${key}">
+      ${bubbles || `<div class="bubble system">${t('ابدأ المحادثة برسالتك أدناه.')}</div>`}
+      ${data.loading ? `<div class="bubble typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>` : ''}
+    </div>
+    <div class="chat-input">
+      <input id="input-${key}" type="text" placeholder="${key==='academic'?t('اكتب استفسارك الأكاديمي...'):t('اكتب إجابتك أو ردك...')}" ${data.loading?'disabled':''} />
+      <button class="send-btn" onclick="sendMessage('${key}')" ${data.loading?'disabled':''}>${t('إرسال')}</button>
+    </div>
+    ${key==='academic' ? `<div class="privacy-note">${t('🔒 محمي بسياسة حماية بيانات الطلاب — جرّب تسأل عن بيانات طالب آخر')}</div>` : ''}
+  </div>`;
+}
+
+function renderFacultyEntry(){
+  const names = uniqueInstructors();
+  return `
+  <div class="entry-wrap">
+    <div class="entry-card">
+      <div class="kicker">${t('بوابة أعضاء هيئة التدريس')}</div>
+      <h2>${t('تسجيل الدخول')}</h2>
+      <p class="sub">${t('تسجيل الدخول للوصول إلى لوحة التحكم الخاصة بشعبتك (البلاك بورد فقط).')}</p>
+      <div class="field">
+        <label>${t('عضو هيئة التدريس')}</label>
+        <select id="fInstructor">
+          ${names.map(n=>`<option>${escapeHtml(t(n))}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>${t('كلمة المرور')}</label>
+        <input id="fFacultyPass" type="password" placeholder="••••••••" />
+      </div>
+      <button class="entry-submit" id="facultyLoginBtn" onclick="submitInstructor()">${t('دخول اللوحة')}</button>
+      
+      <div class="entry-note">
+        <strong>${t('💡 تلميح (حسابات جاهزة للتجربة):')}</strong><br>
+        ${t('د. سلطان الحربي')}: <code>111111</code> · ${t('د. نورة العتيبي')}: <code>222222</code> · ${t('د. منى القحطاني')}: <code>333333</code>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderLastLectureSummary(lecture, qlog, sec, reviewCount){
+  const qs = qlog.filter(q=>q.lectureId===lecture.id);
+  const qCounts = {};
+  qs.forEach(q=>{ const k=(q.question||'').trim(); if(k) qCounts[k]=(qCounts[k]||0)+1; });
+  const rows = Object.entries(qCounts).sort((a,b)=>b[1]-a[1]).slice(0,4);
+  const topics = sec ? sec.topics : [];
+  const startLabel = topics[lecture.startTopicIdx] || '';
+  const endLabel = topics[lecture.endTopicIdx] || '';
+  return `
+  <div class="sandbox-box" style="margin-top:16px;">
+    <span class="sandbox-tag">${tpl('lecture_summary_tag', { date: new Date(lecture.endedAt).toLocaleDateString(dateLocale()) })}</span>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:4px 0 8px;">${tpl('lecture_covered', { a: escapeHtml(t(startLabel)), b: escapeHtml(t(endLabel)) })}</p>
+    ${typeof reviewCount==='number' && reviewCount>0 ? `<p style="font-size:12px;color:var(--teal);font-weight:700;margin:0 0 8px;">${tpl('reviewed_count', { n: reviewCount })}</p>` : ''}
+    ${rows.length ? `<div class="question-list" style="margin-top:8px;">${rows.map(([q,c])=>`<div class="q-row"><div class="qtext">${escapeHtml(t(q))}</div><span class="count-badge">${c}×</span></div>`).join('')}</div>` : `<p style="font-size:13px;color:var(--ink-soft);margin:6px 0 0;">${t('ما وصل أسئلة موثّقة خلال هذه المحاضرة.')}</p>`}
+    <p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">${t('راجعها بداية محاضرتك القادمة قبل ما تبدأ موضوع جديد.')}</p>
+  </div>`;
+}
+
+function renderFaculty(){
+  const f = state.faculty;
+  if(!f.loaded){
+    loadFacultyLogs().then(render);
+    return `<div class="subheader"><div><div class="kicker">${t('لوحة عضو هيئة التدريس')}</div><h2>${t('جاري تحميل البيانات...')}</h2></div></div>`;
+  }
+  const sec = getSection(f.currentSectionId);
+  const topics = sec ? sec.topics : [];
+  const sectionConceptLog = f.conceptLog.filter(e=>e.sectionId===f.currentSectionId);
+  const sectionQuestionLog = f.questionLog.filter(e=>e.sectionId===f.currentSectionId);
+
+  const conceptCounts = {};
+  sectionConceptLog.forEach(e => { conceptCounts[e.concept] = (conceptCounts[e.concept]||0) + 1; });
+  const conceptRows = Object.entries(conceptCounts).sort((a,b)=>b[1]-a[1]);
+
+  const questionCounts = {};
+  const questionSource = {};
+  sectionQuestionLog.forEach(e => {
+    const key = (e.question||'').trim();
+    if(!key) return;
+    questionCounts[key] = (questionCounts[key]||0) + 1;
+    questionSource[key] = e.source;
+  });
+  const questionRows = Object.entries(questionCounts).sort((a,b)=>b[1]-a[1]);
+
+  const totalQuestions = sectionQuestionLog.length;
+  const topQCount = questionRows.length ? questionRows[0][1] : 0;
+  const totalMastered = sectionConceptLog.length;
+
+  const activeLecture = f.lectures.find(l=>l.sectionId===f.currentSectionId && !l.endedAt);
+  const pastLectures = f.lectures.filter(l=>l.sectionId===f.currentSectionId && l.endedAt).sort((a,b)=>b.endedAt-a.endedAt);
+  const lastLecture = pastLectures[0] || null;
+  const liveCount = activeLecture ? sectionQuestionLog.filter(q=>q.lectureId===activeLecture.id).length : 0;
+  const nextStartIdx = (lastLecture && typeof lastLecture.endTopicIdx==='number') ? Math.min(lastLecture.endTopicIdx+1, Math.max(topics.length-1,0)) : 0;
+  const reviewCountForLast = lastLecture ? f.reviewLog.filter(r=>r.sectionId===f.currentSectionId && r.ts>=lastLecture.endedAt).length : 0;
+
+  const srcLabel = (s)=> s==='academic' ? t('النظام الأكاديمي') : (s==='review' ? t('مراجعة بعد محاضرة') : t('البلاك بورد'));
+
+  return `
+  <div class="subheader"><div>
+    <div class="kicker">${t('لوحة عضو هيئة التدريس (البلاك بورد فقط)')}</div>
+    <h2>${escapeHtml(t(f.instructorName))}${sec ? ' — ' + escapeHtml(t(sec.course)) : ''}</h2>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span class="level-badge">${t('المستوى ٢ — شعبتي فقط')}</span>
+    <button class="edit-link" onclick="switchInstructor()">${t('تسجيل خروج')}</button>
+    <button class="edit-link" onclick="resetFacultyDemoData()">${t('🔄 إعادة تحميل بيانات تجريبية')}</button>
+  </div>
+  </div>
+  ${f.ownedSections.length>1 ? `<div class="chips" style="justify-content:flex-start;margin:-8px 0 18px;">${f.ownedSections.map(s=>`<span class="chip ${s.id===f.currentSectionId?'active-chip':''}" onclick="switchSection('${s.id}')">${escapeHtml(t(s.course))} — ${t('شعبة')} ${s.number}</span>`).join('')}</div>` : ''}
+  <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 6px;">${sec ? tpl('fac_sec_prefix', { n: sec.number, m: sec.topics.length }) + ' · ' : ''}${t('هذه القوائم خاصة بهذه الشعبة فقط ولا ترتبط بالنظام الأكاديمي للطلاب.')}</p>
+
+  <div class="stat-row">
+    <div class="stat-card"><div class="num mono">${totalQuestions}</div><div class="lbl">${t('سؤال من طلاب شعبتك')}</div></div>
+    <div class="stat-card"><div class="num mono">${topQCount}</div><div class="lbl">${t('أعلى تكرار لسؤال واحد')}</div></div>
+    <div class="stat-card"><div class="num mono">${totalMastered}</div><div class="lbl">${t('مفهوم أُتقن بعد شرح إضافي')}</div></div>
+    <div class="stat-card"><div class="num mono">${pastLectures.length}${activeLecture?'+1':''}</div><div class="lbl">${t('محاضرة مسجَّلة لهذه الشعبة')}</div></div>
+  </div>
+
+  <div class="section-card">
+    <div class="section-head">
+      <div>
+        <h4>${tpl('lecture_section', { n: sec ? sec.number : '' })}</h4>
+        <p>${activeLecture ? t('حدّد آخر نقطة وصلتوا لها وأنهِ المحاضرة عشان يبني عليها البلاك بورد لطلابك.') : t('حدّد من وين تبدأ اليوم — الافتراضي أول نقطة بعد آخر محاضرة.')}</p>
+      </div>
+    </div>
+    ${activeLecture ? `
+      <div class="sandbox-box approved" style="border-style:solid;">
+        <span class="sandbox-tag approved">${tpl('live_since', { time: new Date(activeLecture.startedAt).toLocaleTimeString(dateLocale(),{hour:'2-digit',minute:'2-digit'}), topic: escapeHtml(t(topics[activeLecture.startTopicIdx]||'')) })}</span>
+        <p style="font-size:13px;margin:10px 0 8px;">${tpl('q_received', { n: liveCount })} <button class="edit-link" onclick="refreshFaculty()">${t('🔄 تحديث')}</button></p>
+        <label style="display:block;font-size:12.5px;font-weight:700;color:var(--navy);margin:10px 0 6px;">${t('وصلتوا اليوم إلى:')}</label>
+        <select id="fEndTopic">
+          ${topics.map((tp,i)=>`<option value="${i}" ${i===activeLecture.startTopicIdx?'selected':''}>${escapeHtml(t(tp))}</option>`).join('')}
+        </select>
+        <button class="quiz-btn" style="background:var(--brick);margin-top:12px;" onclick="endLecture()">${t('⏹ إنهِ المحاضرة عند هذه النقطة')}</button>
+      </div>
+    ` : `
+      <label style="display:block;font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:6px;">${t('تبدأ اليوم من:')}</label>
+      <select id="fStartTopic">
+        ${topics.map((tp,i)=>`<option value="${i}" ${i===nextStartIdx?'selected':''}>${escapeHtml(t(tp))}</option>`).join('')}
+      </select>
+      <button class="quiz-btn" style="margin-top:12px;" onclick="startLecture()">${t('▶ ابدأ محاضرة من هذه النقطة')}</button>
+      ${lastLecture ? renderLastLectureSummary(lastLecture, sectionQuestionLog, sec, reviewCountForLast) : ''}
+    `}
+  </div>
+
+  <div class="section-card">
+    <div class="section-head">
+      <div>
+        <h4>${t('توليد أسئلة لنقاش المحاضرة القادمة')}</h4>
+        <p>${t('مجمّعة تلقائيًا من الفجوات المعرفية للطلاب لعرضها عليهم في المحاضرة كأمثلة تطبيقية.')}</p>
+      </div>
+      <button class="quiz-btn" onclick="generateQuiz()" ${(f.quizLoading || (!questionRows.length && !conceptRows.length))?'disabled':''}>
+        ${f.quizLoading ? t('جاري التوليد...') : t('ولّـد أسئلة نقاش بناءً على هذه الفجوات')}
+      </button>
+    </div>
+    <div class="question-list">
+      ${questionRows.length ? questionRows.slice(0,8).map(([q,count])=>`
+        <div class="q-row">
+          <div><div class="qtext">${escapeHtml(t(q))}</div><div class="src">${srcLabel(questionSource[q])}</div></div>
+          <span class="count-badge">${count}×</span>
+        </div>`).join('') : `<div class="empty">${t('لا توجد أسئلة مسجلة بعد لهذه الشعبة — جرّب فتح جلسة من واجهة الطالب بنفس المقرر والشعبة.')}</div>`}
+    </div>
+    ${f.quizText ? `
+      <div class="sandbox-box ${f.quizApproved?'approved':''}">
+        <span class="sandbox-tag ${f.quizApproved?'approved':''}">${f.quizApproved?t('✅ جاهز للعرض في المحاضرة'):t('🧪 معاينة (Sandbox) — لم يُعتمد بعد')}</span>
+        <div class="quiz-output">${nl2br(f.quizText)}</div>
+        ${f.quizApproved ? `<div class="approved-note">${t('تم الاعتماد للحفظ — مسجَّل في سجل الإجراءات أدناه.')}</div>` : `<button class="approve-btn" onclick="approveQuiz()">${t('اعتماد للعرض في المحاضرة القادمة')}</button>`}
+      </div>
+    ` : ''}
+  </div>
+
+  <div class="fac-split">
+    <div class="concept-list">
+      ${conceptRows.length ? conceptRows.map(([name,count])=>`
+        <div class="concept-row ${f.selected===name?'active':''}" onclick="selectConcept('${escapeHtml(name).replace(/'/g,"\\'")}')">
+          <div><div class="name">${escapeHtml(t(name))}</div><div class="meta">${tpl('mastered_meta', { n: count, times: count===1?t('مرة'):t('مرات') })}</div></div>
+          <span class="count-badge">${count}</span>
+        </div>`).join('') : `<div class="empty">${t('لا توجد مفاهيم مكتملة بعد لهذه الشعبة.')}</div>`}
+    </div>
+    <div class="suggestion-panel">
+      <h4>${t('اقتراح إعادة شرح مفهوم محدد')}</h4>
+      ${f.selected ? `
+        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:10px;">${t('المفهوم المحدد:')} <strong style="color:var(--navy)">${escapeHtml(t(f.selected))}</strong></p>
+        ${f.suggestion ? `
+          <div class="sandbox-box ${f.suggestionApproved?'approved':''}">
+            <span class="sandbox-tag ${f.suggestionApproved?'approved':''}">${f.suggestionApproved?t('✅ معتمد للمحاضرة'):t('🧪 معاينة (Sandbox)')}</span>
+            <div class="suggestion-body">${nl2br(f.suggestion)}</div>
+            ${f.suggestionApproved ? `<div class="approved-note">${t('تم الاعتماد — مسجَّل في سجل الإجراءات أدناه.')}</div>` : `<button class="approve-btn" onclick="approveSuggestion()">${t('اعتماد الاقتراح لعرضه بالمحاضرة')}</button>`}
+          </div>
+        ` :
+          `<button class="gen-btn" onclick="generateSuggestion()" ${f.suggestionLoading?'disabled':''}>${f.suggestionLoading?t('جاري التوليد...'):t('ولّد اقتراح إعادة الشرح')}</button>`}
+      ` : `<div class="suggestion-placeholder">${t('اختر مفهومًا من القائمة لعرض توصية مولّدة بالذكاء الاصطناعي لإعادة شرحه.')}</div>`}
+    </div>
+  </div>
+
+  <div class="action-log">
+    <h4>${t('سجل الإجراءات التحضيرية للمحاضرة')}</h4>
+    ${f.actionLog.length ? f.actionLog.slice().reverse().slice(0,6).map(a=>`
+      <div class="log-row"><span>${escapeHtml(t(a.label))}${a.extra ? ' ' + escapeHtml(t(a.extra)) : ''}</span><span class="ts">${new Date(a.ts).toLocaleString(dateLocale())}</span></div>
+    `).join('') : `<div class="empty">${t('لا توجد إجراءات معتمدة بعد.')}</div>`}
+  </div>
+
+  <div class="footer-note">${t('هذه البيانات تتحدّث فعليًا كلما فتح طالب من نفس شعبتك جلسة، راجع محاضرة، أو أكمل فهم مفهوم بالبلاك بورد.')}</div>
+  `;
+}
+
+/* ---------------- ACTIONS ---------------- */
+function goLanding(){ state.view='landing'; render(); }
+function goStudent(){ state.view = state.profile.filled ? 'student' : 'studentEntry'; render(); }
+function goFaculty(){
+  state.view = state.faculty.instructorName ? 'faculty' : 'facultyEntry';
+  state.faculty.loaded = false;
+  render();
+}
+function switchTab(t){
+  state.studentTab = t;
+  render();
+  if(t==='blackboard') loadSectionProgress();
+}
+function toggleIntentInfo(){ state.showIntentInfo = !state.showIntentInfo; render(); }
+function editProfile(){ state.profile.filled=false; state.view='studentEntry'; render(); }
+
+function submitProfile(){
+  const uid = document.getElementById('fUid').value.trim();
+  const pass = document.getElementById('fPass').value.trim();
+  
+  if(!uid || !pass){
+    alert(t('الرجاء إدخال الرقم الجامعي وكلمة المرور.'));
+    return;
+  }
+  
+  // التحقق من قاعدة البيانات الوهمية
+  const user = MOCK_USERS.find(u => u.uid === uid && u.pass === pass);
+  
+  if(!user){
+    alert(t('الرقم الجامعي أو كلمة المرور غير صحيحة.'));
+    return;
+  }
+  
+  const btn = document.getElementById('studentLoginBtn');
+  btn.innerText = t('جاري التحقق...');
+  btn.disabled = true;
+  
+  setTimeout(() => {
+    // حفظ بيانات الطالب مؤقتًا ثم الانتقال لاختيار المادة والشعبة قبل الجلسة
+    state.pendingProfile = { name: user.name, uid: user.uid, major: user.major, level: user.level };
+    state.view = 'studentSection';
+    render();
+  }, 600);
+}
+
+function onPendingCourseChange(){
+  const course = document.getElementById('pCourse').value;
+  const secSel = document.getElementById('pSection');
+  secSel.innerHTML = sectionsForCourse(course).map(s=>`<option value="${s.id}">${t('شعبة')} ${s.number} — ${t(s.instructor)}</option>`).join('');
+}
+
+function submitSectionChoice(){
+  const courseName = document.getElementById('pCourse').value;
+  const sectionId = document.getElementById('pSection').value;
+  const p = state.pendingProfile || {};
+  state.profile = { 
+    name: p.name, 
+    uid: p.uid, 
+    major: p.major, 
+    level: p.level, 
+    courseName: courseName, 
+    sectionId: sectionId, 
+    filled: true 
+  };
+  state.pendingProfile = null;
+  state.view = 'student';
+  render();
+}
+
+function submitInstructor(){
+  const name = document.getElementById('fInstructor').value;
+  const pass = document.getElementById('fFacultyPass').value.trim();
+  
+  if(!pass){
+    alert(t('الرجاء إدخال كلمة المرور للمتابعة.'));
+    return;
+  }
+  
+  // التحقق من قاعدة البيانات الوهمية للدكاترة
+  const fac = MOCK_FACULTY.find(f => f.name === name && f.pass === pass);
+  
+  if(!fac){
+    alert(t('اسم الدكتور أو كلمة المرور غير صحيحة.'));
+    return;
+  }
+  
+  const btn = document.getElementById('facultyLoginBtn');
+  btn.innerText = t('جاري التحقق...');
+  btn.disabled = true;
+  
+  setTimeout(() => {
+    const owned = SECTIONS.filter(s=>s.instructor===name);
+    state.faculty.instructorName = name;
+    state.faculty.ownedSections = owned;
+    state.faculty.currentSectionId = owned.length ? owned[0].id : null;
+    state.faculty.loaded = false;
+    state.view = 'faculty';
+    render();
+  }, 600);
+}
+
+function switchInstructor(){
+  state.faculty.instructorName = null;
+  state.faculty.ownedSections = [];
+  state.faculty.currentSectionId = null;
+  state.view = 'facultyEntry';
+  render();
+}
+function switchSection(id){
+  state.faculty.currentSectionId = id;
+  state.faculty.selected = null;
+  state.faculty.suggestion = '';
+  state.faculty.suggestionApproved = false;
+  state.faculty.quizText = '';
+  state.faculty.quizApproved = false;
+  render();
+}
+
+function scrollLog(key){
+  const el = document.getElementById('log-'+key);
+  if(el) el.scrollTop = el.scrollHeight;
+}
+
+async function sendMessage(key){
+  const input = document.getElementById('input-'+key);
+  const text = input.value.trim();
+  if(!text) return;
+  input.value = '';
+  const data = state[key];
+  const isFirstUserMsg = !data.questionLogged;
+  data.messages.push({role:'user', text});
+  data.loading = true;
+  render(); scrollLog(key);
+
+  if(isFirstUserMsg && key==='academic'){
+    data.questionLogged = true;
+    pushQuestionLog(text, 'academic', state.profile.sectionId);
+  }
+
+  try{
+    if(key === 'academic'){
+      const history = data.messages.filter(m=>m.role!=='system').map(m=>({role: m.role==='policy' ? 'assistant' : m.role, content:m.text}));
+      const reply = await callClaude(academicSystemPrompt(), history);
+      let clean = reply.trim();
+      let isPolicy = false;
+      if(clean.startsWith('[POLICY_BLOCK]')){
+        isPolicy = true;
+        clean = clean.replace('[POLICY_BLOCK]', '').trim();
+      }
+      data.messages.push({role: isPolicy ? 'policy' : 'ai', text: clean});
+    } else {
+      await advanceTutor(text);
+    }
+  }catch(e){
+    data.messages.push({role:'system', text:t('تعذر الاتصال بالمساعد. حاول مرة أخرى.')});
+  }
+  data.loading = false;
+  render(); scrollLog(key);
+}
+
+function quickStart(topic){
+  document.getElementById('starterInput').value = topic;
+  startTutor();
+}
+async function startTutor(){
+  const input = document.getElementById('starterInput');
+  const topic = input.value.trim();
+  if(!topic) return;
+  const tr = state.tutor;
+  tr.started = true;
+  tr.mode = 'open';
+  tr.reviewTopics = [];
+  tr.loading = true;
+  tr.mastered = false;
+  tr.step = 1; tr.total = 5;
+  tr.concept = '';
+  tr.messages = [{role:'user', text: topic}];
+  tr.questionLogged = true;
+  pushQuestionLog(topic, 'tutor', state.profile.sectionId);
+  render();
+  try{
+    await advanceTutor(topic, true);
+  }catch(e){
+    tr.messages.push({role:'system', text:t('تعذر بدء الجلسة. حاول مرة أخرى.')});
+  }
+  tr.loading = false;
+  render(); scrollLog('tutor');
+}
+
+async function startReview(){
+  const sec = getSection(state.profile.sectionId);
+  const lec = state.lastEndedLectureForStudent;
+  if(!sec || !lec) return;
+  const topics = sec.topics.slice(lec.startTopicIdx, lec.endTopicIdx+1);
+  const tr = state.tutor;
+  tr.started = true;
+  tr.mode = 'review';
+  tr.reviewTopics = topics;
+  tr.loading = true;
+  tr.mastered = false;
+  tr.step = 1; tr.total = topics.length; tr.concept = t('مراجعة محاضرة اليوم');
+  tr.messages = [{role:'user', text: t('ابدأ المراجعة')}];
+  tr.questionLogged = true;
+  pushQuestionLog(tpl('review_log_prefix', { a: t(topics[0]), b: t(topics[topics.length-1]) }), 'review', state.profile.sectionId);
+  render();
+  try{
+    await advanceTutor(t('ابدأ المراجعة'), true);
+  }catch(e){
+    tr.messages.push({role:'system', text:t('تعذر بدء المراجعة. حاول مرة أخرى.')});
+  }
+  tr.loading = false;
+  render(); scrollLog('tutor');
+}
+
+async function advanceTutor(userText, isFirst){
+  const t = state.tutor;
+  const sec = getSection(state.profile.sectionId);
+  const history = t.messages.filter(m=>m.role==='user'||m.role==='ai').map(m=>({
+    role: m.role==='ai' ? 'assistant' : 'user',
+    content: m.role==='ai' ? m.rawJson || m.text : m.text
+  }));
+  const systemPrompt = (t.mode==='review' ? reviewSystemPrompt(t.reviewTopics, sec?sec.course:'') : TUTOR_SYSTEM_PROMPT) + langInstruction();
+  const raw = await callClaude(systemPrompt, history);
+  let parsed;
+  try{
+    const cleaned = raw.replace(/```json|```/g,'').trim();
+    parsed = JSON.parse(cleaned);
+  }catch(e){
+    parsed = { message: raw, phase:'assessment', step_number:t.step, total_steps_estimate:t.total, concept_title:t.concept, mastered:false };
+  }
+  t.messages.push({role:'ai', text: parsed.message || '...', rawJson: JSON.stringify(parsed)});
+  t.phase = parsed.phase || t.phase;
+  t.step = parsed.step_number || t.step;
+  t.total = parsed.total_steps_estimate || t.total;
+  if(t.mode!=='review') t.concept = parsed.concept_title || t.concept;
+  if(parsed.mastered){
+    t.mastered = true;
+    if(t.mode==='review'){
+      await pushReviewLog(state.profile.sectionId);
+    } else {
+      await pushConceptLog(t.concept, state.profile.sectionId);
+    }
+  }
+}
+
+function selectConcept(name){
+  state.faculty.selected = name;
+  state.faculty.suggestion = '';
+  state.faculty.suggestionApproved = false;
+  render();
+}
+async function generateSuggestion(){
+  const f = state.faculty;
+  const sec = getSection(f.currentSectionId);
+  f.suggestionLoading = true;
+  f.suggestionApproved = false;
+  render();
+  try{
+    const reply = await callClaude(suggestionPrompt(f.selected, sec?sec.course:''), [{role:'user', content:'ابدأ'}]);
+    f.suggestion = reply.trim();
+  }catch(e){
+    f.suggestion = t('تعذر توليد الاقتراح. حاول مرة أخرى.');
+  }
+  f.suggestionLoading = false;
+  render();
+}
+async function approveSuggestion(){
+  const f = state.faculty;
+  f.suggestionApproved = true;
+  render();
+  const updated = await pushActionLog(t('اعتماد اقتراح إعادة شرح لمفهوم: '), f.selected);
+  if(updated) f.actionLog = updated;
+  render();
+}
+
+async function generateQuiz(){
+  const f = state.faculty;
+  const sec = getSection(f.currentSectionId);
+  const cLog = f.conceptLog.filter(e=>e.sectionId===f.currentSectionId);
+  const qLog = f.questionLog.filter(e=>e.sectionId===f.currentSectionId);
+  const conceptCounts = {};
+  cLog.forEach(e => { conceptCounts[e.concept] = (conceptCounts[e.concept]||0) + 1; });
+  const conceptRows = Object.entries(conceptCounts).sort((a,b)=>b[1]-a[1]);
+  const questionCounts = {};
+  qLog.forEach(e => { const k=(e.question||'').trim(); if(k) questionCounts[k]=(questionCounts[k]||0)+1; });
+  const questionRows = Object.entries(questionCounts).sort((a,b)=>b[1]-a[1]);
+
+  f.quizLoading = true;
+  f.quizApproved = false;
+  render();
+  try{
+    const reply = await callClaude(quizPrompt(questionRows, conceptRows, sec?sec.course:''), [{role:'user', content:'ابدأ'}]);
+    f.quizText = reply.trim();
+  }catch(e){
+    f.quizText = t('تعذر توليد الأسئلة. حاول مرة أخرى.');
+  }
+  f.quizLoading = false;
+  render();
+}
+async function approveQuiz(){
+  const f = state.faculty;
+  f.quizApproved = true;
+  render();
+  const updated = await pushActionLog(t('اعتماد أسئلة نقاش للمحاضرة مولّدة من فجوات الطلاب'));
+  if(updated) f.actionLog = updated;
+  render();
+}
+
+async function startLecture(){
+  const f = state.faculty;
+  const startIdx = parseInt(document.getElementById('fStartTopic').value, 10);
+  const id = 'lec_' + Date.now();
+  const entry = { id, sectionId: f.currentSectionId, startedAt: Date.now(), endedAt: null, startTopicIdx: startIdx, endTopicIdx: null };
+  let arr = [];
+  try{ const r = await window.storage.get('lectures', true); arr = r && r.value ? JSON.parse(r.value) : []; }catch(e){ arr=[]; }
+  arr.push(entry);
+  try{ await window.storage.set('lectures', JSON.stringify(arr), true); }catch(e){}
+  f.lectures = arr;
+  render();
+}
+async function endLecture(){
+  const f = state.faculty;
+  const endIdx = parseInt(document.getElementById('fEndTopic').value, 10);
+  let arr = [];
+  try{ const r = await window.storage.get('lectures', true); arr = r && r.value ? JSON.parse(r.value) : []; }catch(e){ arr=[]; }
+  const idx = arr.findIndex(l=>l.sectionId===f.currentSectionId && !l.endedAt);
+  if(idx>-1){ arr[idx].endedAt = Date.now(); arr[idx].endTopicIdx = endIdx; }
+  try{ await window.storage.set('lectures', JSON.stringify(arr), true); }catch(e){}
+  f.lectures = arr;
+  render();
+  const secObj = getSection(f.currentSectionId);
+  const updated = await pushActionLog(t('إنهاء محاضرة شعبة '), secObj ? secObj.number : '');
+  if(updated) f.actionLog = updated;
+  render();
+}
+async function refreshFaculty(){
+  await loadFacultyLogs();
+  render();
+}
+
+function attachHandlers(){
+  ['input-academic','input-tutor','starterInput','fUid', 'fPass', 'fFacultyPass'].forEach(id=>{
+    const elx = document.getElementById(id);
+    if(!elx) return;
+    elx.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter'){
+        if(id==='starterInput') startTutor();
+        else if(id==='fUid' || id==='fPass') submitProfile();
+        else if(id==='fFacultyPass') submitInstructor();
+        else sendMessage(id.replace('input-',''));
+      }
+    });
+  });
+  scrollLog('academic'); scrollLog('tutor');
+}
+
+render();
+document.documentElement.setAttribute('lang', state.lang);
+document.documentElement.setAttribute('dir', state.lang === 'ar' ? 'rtl' : 'ltr');
+document.title = state.lang === 'ar' ? 'EDU AI — نموذج أولي' : 'EDU AI — Prototype';
+</script>
+</body>
+</html>
