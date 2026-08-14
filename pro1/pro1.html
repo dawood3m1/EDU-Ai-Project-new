@@ -411,6 +411,41 @@ const MOCK_FACULTY = [
   { name: 'د. منى القحطاني', pass: '333333' }
 ];
 
+/* ---------------- MOCK STORAGE (localStorage-backed persistence) ---------------- */
+window.storage = (function(){
+  const PREFIX = 'eduai_';
+  return {
+    async get(key){
+      try{
+        const v = localStorage.getItem(PREFIX + key);
+        return v === null ? null : { value: v };
+      }catch(e){ return null; }
+    },
+    async set(key, value){
+      try{
+        localStorage.setItem(PREFIX + key, value);
+        return true;
+      }catch(e){ return false; }
+    }
+  };
+})();
+
+async function initSeedStorage(){
+  const defs = {
+    'concept-log': () => JSON.stringify(buildSeedConcepts()),
+    'question-log': () => JSON.stringify(buildSeedQuestions()),
+    'lectures': () => JSON.stringify(buildSeedLectures()),
+    'review-log': () => '[]',
+    'action-log': () => '[]'
+  };
+  for(const key in defs){
+    try{
+      const r = await window.storage.get(key);
+      if(!r || !r.value) await window.storage.set(key, defs[key]());
+    }catch(e){}
+  }
+}
+
 /* ---------------- COMPLIANCE KNOWLEDGE BASE (الأنظمة الرسمية: سدايا SDAIA / حماية البيانات الشخصية PDPL / NDMO) ---------------- */
 const SDAIA_COMPLIANCE_KB = {
   "sdaia_overview": {
@@ -482,6 +517,7 @@ const state = {
   pendingProfile: null,
   studentTab: 'academic',
   showIntentInfo: false,
+  offlineMode: false,
   currentChapterLabel: null,
   lastEndedLectureForStudent: null,
   profile: {
@@ -578,12 +614,12 @@ const i18n = {
   'المستوى': 'Level',
   'المعدل التراكمي': 'GPA',
   'غير مكتمل': 'Incomplete',
-  'reg_flag': '⚠ Registration request for "{course}" rejected — missing prerequisite',
+  '⚠ طلب تسجيل "{course}" مرفوض — متطلب سابق غير مكتمل': '⚠ Registration request for "{course}" rejected — missing prerequisite',
   'نقطة بالمنهج': 'syllabus points',
 
   /* review card / starter / stepper */
   '📋 مراجعة محاضرة اليوم متاحة': '📋 Today\u2019s lecture review available',
-  'review_card_text': 'Review our last lecture: from <strong>{from}</strong> to <strong>{to}</strong> ({n} points, exactly as taught).',
+  'راجع آخر محاضرة: من <strong>{from}</strong> إلى <strong>{to}</strong> ({n} نقطة، بالضبط كما أُخذت).': 'Review our last lecture: from <strong>{from}</strong> to <strong>{to}</strong> ({n} points, exactly as taught).',
   'ابدأ المراجعة': 'Start Review',
   'وش الموضوع اللي تبي تفهمه؟': 'What topic would you like to understand?',
   'اكتب أي مفهوم دراسي، وراح يختبرك المعلم الخصوصي فيه أولاً، ثم يشرح لك بناءً على أخطائك.': 'Type any study concept — the tutor will test you on it first, then explain based on your mistakes.',
@@ -621,19 +657,19 @@ const i18n = {
   'أعلى تكرار لسؤال واحد': 'Top repeat for a single question',
   'مفهوم أُتقن بعد شرح إضافي': 'Concepts mastered after extra explanation',
   'محاضرة مسجَّلة لهذه الشعبة': 'Recorded lectures for this section',
-  'lecture_section': 'Lecture — Section {n}',
+  'محاضرة — شعبة {n}': 'Lecture — Section {n}',
   'حدّد آخر نقطة وصلتوا لها وأنهِ المحاضرة عشان يبني عليها البلاك بورد لطلابك.': 'Mark the last point you reached and end the lecture so Blackboard can build on it for your students.',
   'حدّد من وين تبدأ اليوم — الافتراضي أول نقطة بعد آخر محاضرة.': 'Choose where to start today — the default is the first point after the last lecture.',
-  'live_since': '🔴 Live since {time} — started from: {topic}',
-  'q_received': '{n} question(s) received during this lecture so far.',
+  '🔴 بدأت من {time} — من: {topic}': '🔴 Live since {time} — started from: {topic}',
+  '{n} سؤال مستلم خلال هذه المحاضرة حتى الآن.': '{n} question(s) received during this lecture so far.',
   '🔄 تحديث': '🔄 Refresh',
   'وصلتوا اليوم إلى:': 'Reached today to:',
   '⏹ إنهِ المحاضرة عند هذه النقطة': '⏹ End lecture at this point',
   'تبدأ اليوم من:': 'Start today from:',
   '▶ ابدأ محاضرة من هذه النقطة': '▶ Start lecture from this point',
-  'lecture_summary_tag': '📋 Last lecture summary — {date}',
-  'lecture_covered': 'Covered from <strong>{a}</strong> to <strong>{b}</strong>',
-  'reviewed_count': '✅ {n} student(s) completed this lecture\u2019s review',
+  '📋 ملخص آخر محاضرة — {date}': '📋 Last lecture summary — {date}',
+  'غطّت من <strong>{a}</strong> إلى <strong>{b}</strong>': 'Covered from <strong>{a}</strong> to <strong>{b}</strong>',
+  '✅ {n} طالب أكمل مراجعة هذه المحاضرة': '✅ {n} student(s) completed this lecture\u2019s review',
   'ما وصل أسئلة موثّقة خلال هذه المحاضرة.': 'No documented questions arrived during this lecture.',
   'راجعها بداية محاضرتك القادمة قبل ما تبدأ موضوع جديد.': 'Review it at the start of your next lecture before starting a new topic.',
   'توليد أسئلة لنقاش المحاضرة القادمة': 'Generate Discussion Questions for the Next Lecture',
@@ -645,7 +681,7 @@ const i18n = {
   '🧪 معاينة (Sandbox) — لم يُعتمد بعد': '🧪 Preview (Sandbox) — not approved yet',
   'تم الاعتماد للحفظ — مسجَّل في سجل الإجراءات أدناه.': 'Approved and saved — recorded in the action log below.',
   'اعتماد للعرض في المحاضرة القادمة': 'Approve for next lecture',
-  'mastered_meta': 'Mastered after extra explanation — {n} {times}',
+  'أُتقن بعد شرح إضافي — {n} {times}': 'Mastered after extra explanation — {n} {times}',
   'مرة': 'time',
   'مرات': 'times',
   'تكرر': 'repeated',
@@ -665,7 +701,7 @@ const i18n = {
   'لا توجد إجراءات معتمدة بعد.': 'No approved actions yet.',
   'هذه البيانات تتحدّث فعليًا كلما فتح طالب من نفس شعبتك جلسة، راجع محاضرة، أو أكمل فهم مفهوم بالبلاك بورد.': 'This data updates live whenever a student from your section opens a session, reviews a lecture, or masters a concept on Blackboard.',
   'مراجعة بعد محاضرة': 'Post-Lecture Review',
-  'fac_sec_prefix': 'Section {n} — {m} syllabus points',
+  'شعبة {n} — {m} نقطة منهج': 'Section {n} — {m} syllabus points',
   'هذه القوائم خاصة بهذه الشعبة فقط ولا ترتبط بالنظام الأكاديمي للطلاب.': 'The lists below are specific to this section only and are not linked to the student academic system.',
 
   /* alerts / system messages */
@@ -674,16 +710,37 @@ const i18n = {
   'الرجاء إدخال كلمة المرور للمتابعة.': 'Please enter the password to continue.',
   'اسم الدكتور أو كلمة المرور غير صحيحة.': 'Instructor name or password is incorrect.',
   'تعذر الاتصال بالمساعد. حاول مرة أخرى.': 'Could not connect to the assistant. Please try again.',
+  'انتهت مهلة الاتصال بالخادم. حاول مرة أخرى.': 'Connection to the server timed out. Please try again.',
+  'تعذر الاتصال بالمساعد: مشكلة في الخادم. تأكد من تشغيل proxy_server.py ثم أعد المحاولة.': 'Could not reach the assistant: server error. Make sure proxy_server.py is running, then retry.',
+  'تعذر الاتصال بالمساعد: مشكلة في الشبكة. حاول مرة أخرى.': 'Could not reach the assistant: network issue. Please try again.',
+  'سياسة حماية البيانات الشخصية (PDPL)': 'Personal Data Protection Law (PDPL)',
+  'أثر السياسة:': 'Policy trace:',
+  'تم منع الإجابة تلقائيًا لأن الطلب يخالف أحكام توطين البيانات والموافقة في نظام حماية البيانات الشخصية (PDPL).': 'The answer was blocked automatically because the request violates PDPL data-localization and consent provisions.',
+  'وضع العرض التجريبي: تعذر الاتصال بالخادم، تُعرض ردود معاينة.': 'Demo mode: server unreachable — showing preview responses.',
   'تعذر بدء الجلسة. حاول مرة أخرى.': 'Could not start the session. Please try again.',
   'تعذر بدء المراجعة. حاول مرة أخرى.': 'Could not start the review. Please try again.',
   'تعذر توليد الاقتراح. حاول مرة أخرى.': 'Could not generate the suggestion. Please try again.',
   'تعذر توليد الأسئلة. حاول مرة أخرى.': 'Could not generate the questions. Please try again.',
+  'نواجه ضغطاً في الخادم حالياً، يرجى المحاولة بعد قليل.': 'We are experiencing high server load right now. Please try again shortly.',
+  'لا تتوفر لدي معلومة إضافية.': 'I have no additional information.',
+  'عذرًا، يبدو أنني كرّرت نفس الرد. سأحاول صياغة إجابة جديدة.': 'Sorry, I seem to have repeated my previous reply. I will try to rephrase.',
+  'لا تكرر نفس إجابتك السابقة، أعد الصياغة من جديد بمحتوى مختلف.': 'Do not repeat your previous answer; rephrase with new content.',
+  'الإنجليزية': 'English',
+  'العربية': 'Arabic',
+  'معلم البلاك بورد': 'Blackboard Tutor',
+  'المنظومة الأكاديمية': 'Academic System',
+  'نظام البلاك بورد': 'Blackboard System',
+  'سؤال تجريبي': 'Test question',
+  'اختبار جميع الوكلاء': 'Test all agents',
+  'خطأ في المصادقة مع الخادم. تأكد من صحة مفتاح API.': 'Server authentication error. Please verify the API key.',
+  'الخادم رفض الطلب ({1}) — تأكد من تشغيل proxy_server.py.': 'Server rejected the request ({1}) — make sure proxy_server.py is running.',
+  'لا يوجد رد صالح من الخادم.': 'No valid response from server.',
   'مفهوم غير مسمى': 'Unnamed Concept',
   'اعتماد اقتراح إعادة شرح لمفهوم: ': 'Approved re-teaching suggestion for concept: ',
   'اعتماد أسئلة نقاش للمحاضرة مولّدة من فجوات الطلاب': 'Approved discussion questions generated from student gaps',
   'إنهاء محاضرة شعبة ': 'Ended lecture for section ',
   'مراجعة محاضرة اليوم': 'Today\u2019s Lecture Review',
-  'review_log_prefix': 'Lecture review: {a} ← {b}',
+  'مراجعة المحاضرة: {a} ← {b}': 'Lecture review: {a} ← {b}',
   'من 4': 'of 4',
   'مكتمل': 'Completed',
 
@@ -747,13 +804,34 @@ const tpl = (key, vars) => {
   if(vars) for(const k in vars) s = s.split('{'+k+'}').join(String(vars[k]));
   return s;
 };
-const langInstruction = () => '\n\nIMPORTANT: You must respond entirely in ' + (state.lang === 'en' ? 'English' : 'Arabic') + '.\n';
+const ANTI_REPEAT = () => state.lang === 'en'
+  ? '\n\nANTI-REPETITION (STRICT): Never repeat, restate, or reword any answer you already gave earlier in this conversation. Every new reply MUST contain new content. If you have nothing new to add, respond with exactly: "I have no additional information." and stop. Never fall into a loop of repeated responses.'
+  : '\n\nمكافحة التكرار (صارم): لا تكرر أبدًا أي إجابة سبق أن أرسلتها في هذه المحادثة، ولا تعِد صياغتها بنفس المحتوى. كل رد جديد يجب أن يحوي محتوى مختلفًا. إذا لم يتوفر لديك معلومة جديدة، اكتب حرفيًا: "لا تتوفر لدي معلومة إضافية." ثم توقف. لا تدخل أبدًا في حلقات تكرار.';
+const langInstruction = () => '\n\nIMPORTANT: You must respond entirely in ' + (state.lang === 'en' ? 'English' : 'Arabic') + '.\n' + ANTI_REPEAT();
+const langClause = () => (state.lang === 'en' ? 'Respond entirely in English.' : 'اكتب ردك بالكامل بالعربية الفصحى المبسطة.') + ANTI_REPEAT();
 function toggleLang(){
   state.lang = state.lang === 'ar' ? 'en' : 'ar';
   document.documentElement.setAttribute('lang', state.lang);
   document.documentElement.setAttribute('dir', state.lang === 'ar' ? 'rtl' : 'ltr');
   document.title = state.lang === 'ar' ? 'EDU AI — نموذج أولي' : 'EDU AI — Prototype';
   render();
+}
+function translatePage(language){
+  if(language && language !== state.lang){
+    state.lang = language;
+    document.documentElement.setAttribute('lang', language);
+    document.documentElement.setAttribute('dir', language === 'ar' ? 'rtl' : 'ltr');
+    document.title = language === 'ar' ? 'EDU AI — نموذج أولي' : 'EDU AI — Prototype';
+  }
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.getAttribute('data-i18n');
+    if(k) el.innerHTML = t(k);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const k = el.getAttribute('data-i18n-placeholder');
+    if(k) el.setAttribute('placeholder', t(k));
+  });
+  if(state.view) render();
 }
 
 function formatComplianceKB(kb){
@@ -786,7 +864,8 @@ ${formatComplianceKB(SDAIA_COMPLIANCE_KB)}
 - ممنوع منعًا باتًا اختراع أو افتراض أو تخمين أي إرشادات قانونية أو أخلاقية؛ اعتمد حصريًا على كائن JSON المرفق أعلاه (Zero Hallucination).${langInstruction()}`;
 }
 
-const TUTOR_SYSTEM_PROMPT = `أنت "المعلم الخصوصي الذكي" داخل نظام البلاك بورد بمنصة EDU AI. دورك مساعدة طالب جامعي سعودي على فهم مفهوم دراسي يعاني فيه، عبر مسار تعليمي دقيق وممنهج، وليس إعطاء إجابات جاهزة.
+function tutorSystemPrompt(){
+  return `أنت "المعلم الخصوصي الذكي" داخل نظام البلاك بورد بمنصة EDU AI. دورك مساعدة طالب جامعي سعودي على فهم مفهوم دراسي يعاني فيه، عبر مسار تعليمي دقيق وممنهج، وليس إعطاء إجابات جاهزة.
 
 مسارك الإلزامي خطوة بخطوة:
 المرحلة 1: تحديد المستوى (assessment): ابدأ الجلسة فوراً باختبار قصير (سؤالين أو ثلاثة) حول المفهوم الذي طلبه الطالب لتحديد مستواه، دون تقديم أي شرح مسبق.
@@ -799,10 +878,13 @@ const TUTOR_SYSTEM_PROMPT = `أنت "المعلم الخصوصي الذكي" د�
 - إذا أخطأ في التأكيدي: عد للمرحلة 2 (explaining) واشرح بأسلوب مبسط ومختلف.
 - إذا أجاب بشكل صحيح: أنهِ الجلسة بنجاح واستخدم (mastered=true).
 
+${langClause()}
+
 مهم جداً جداً: ردك بالكامل يجب أن يكون كائن JSON صالح فقط، بدون أي نص قبله أو بعده وبدون أسوار كود Markdown، بالضبط بهذا الشكل:
-{"message": "النص الذي سيظهر للطالب بالعربية", "phase": "assessment أو explaining أو summary أو verification أو mastered", "step_number": رقم صحيح يمثل المرحلة الحالية من 1 إلى 5, "total_steps_estimate": 5, "concept_title": "اسم مختصر للمفهوم بالعربية", "mastered": true أو false}
+{"message": "نص الرسالة الموجهة للطالب (باللغة الحالية للواجهة)", "phase": "assessment أو explaining أو summary أو verification أو mastered", "step_number": رقم صحيح يمثل المرحلة الحالية من 1 إلى 5, "total_steps_estimate": 5, "concept_title": "اسم مختصر للمفهوم", "mastered": true أو false}
 
 أول رسالة من الطالب ستكون اسم المفهوم. ابدأ مباشرة بطرح اختبار تحديد المستوى.`;
+}
 
 function reviewSystemPrompt(topicsList, courseName){
   const list = topicsList.map((tp,i)=>(i+1)+'. '+t(tp)).join('\n');
@@ -817,18 +899,20 @@ ${list}
 - لا تخرج عن النقاط المذكورة أعلاه، ولا تضف مواضيع لم تُغطَّ بالمحاضرة.
 - عند تغطية كل النقاط بنجاح، اجعل mastered=true واكتب رسالة ختامية قصيرة تلخص أهم نقطتين من المحاضرة وتهنئه بإنهاء المراجعة، واستخدم phase="mastered".
 
+${langClause()}
+
 مهم جدًا جدًا: ردك بالكامل يجب أن يكون كائن JSON صالح فقط، بدون أي نص قبله أو بعده وبدون أسوار كود Markdown، بالضبط بهذا الشكل:
-{"message": "النص الذي سيظهر للطالب بالعربية", "phase": "explaining أو checking أو mastered", "step_number": رقم صحيح يبدأ من 1, "total_steps_estimate": ${topicsList.length}, "concept_title": "مراجعة محاضرة اليوم", "mastered": true أو false}
+{"message": "النص الذي سيظهر للطالب", "phase": "explaining أو checking أو mastered", "step_number": رقم صحيح يبدأ من 1, "total_steps_estimate": ${topicsList.length}, "concept_title": "مراجعة محاضرة اليوم", "mastered": true أو false}
 
 ابدأ مباشرة بمراجعة النقطة الأولى مع سؤال استرجاع قصير.`;
 }
 
 function suggestionPrompt(concept, courseName){
   return `أنت خبير تصميم تعليمي. صمم توصية لعضو هيئة تدريس جامعي يدرّس مقرر "${t(courseName)||''}" حول مفهوم بعنوان "${t(concept)}" الذي واجه فيه عدة طلاب صعوبة أثناء جلسات التعلم الذاتي عبر نظام البلاك بورد.
-اكتب بالعربية الفصحى المبسطة، بدون Markdown، ثلاث فقرات قصيرة مرقمة نصيًا (١، ٢، ٣) بالترتيب التالي:
+اكتب بدون Markdown، ثلاث فقرات قصيرة مرقمة نصيًا (١، ٢، ٣) بالترتيب التالي:
 ١. سبب محتمل مختصر لصعوبة الفهم الشائعة في هذا المفهوم تحديدًا.
 ٢. طريقة شرح بديلة تعتمد على مثال أو تشبيه مختلف عن الأسلوب التقليدي، مناسبة لمحاضرة قادمة.
-٣. سؤال تقييمي سريع واحد يمكن طرحه في المحاضرة للتأكد من الاستيعاب.${langInstruction()}`;
+٣. سؤال تقييمي سريع واحد يمكن طرحه في المحاضرة للتأكد من الاستيعاب.${langClause()}${langInstruction()}`;
 }
 
 function quizPrompt(questionRows, conceptRows, courseName){
@@ -842,23 +926,198 @@ ${qList}
 المفاهيم التي احتاجت شرحًا إضافيًا حتى أُتقنت:
 ${cList}
 
-صمم 4 أسئلة بناءً على هذه الفجوات المعرفية لعرضها ومناقشتها مع الطلاب في المحاضرة القادمة (أسئلة للنقاش والشرح وليست لاختبارهم فعلياً). اكتب بعد كل سؤال الإجابة النموذجية أو نقطة النقاش المستهدفة بين قوسين. اكتب بالعربية الفصحى، بدون Markdown، مرقّمة بالأرقام العربية (١، ٢، ٣، ٤).${langInstruction()}`;
+صمم 4 أسئلة بناءً على هذه الفجوات المعرفية لعرضها ومناقشتها مع الطلاب في المحاضرة القادمة (أسئلة للنقاش والشرح وليست لاختبارهم فعلياً). اكتب بعد كل سؤال الإجابة النموذجية أو نقطة النقاش المستهدفة بين قوسين. اكتب بدون Markdown، مرقّمة بالأرقام العربية (١، ٢، ٣، ٤).${langClause()}${langInstruction()}`;
 }
 
-async function callClaude(systemPrompt, history){
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1000,
-      system: systemPrompt,
-      messages: history
-    })
-  });
-  if(!res.ok) throw new Error('network');
-  const data = await res.json();
-  return (data.content||[]).map(b=>b.text||"").join("\n");
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const normalizeDup = (s) => (s || '').toLowerCase().replace(/\s+/g, ' ').trim().slice(0, 120);
+const lastAiByKey = {};
+function isDuplicate(key, text){
+  const n = normalizeDup(text);
+  const prev = lastAiByKey[key] || '';
+  if(prev && n === prev) return true;
+  lastAiByKey[key] = n;
+  return false;
+}
+function resetDupGuard(key){ lastAiByKey[key] = ''; }
+function translateServerError(status){
+  if(status === 401 || status === 403) return t('خطأ في المصادقة مع الخادم. تأكد من صحة مفتاح API.');
+  if(status === 429) return t('نواجه ضغطاً في الخادم حالياً، يرجى المحاولة بعد قليل.');
+  if(status >= 500 || status >= 400) return tpl('الخادم رفض الطلب ({1}) — تأكد من تشغيل proxy_server.py.', { 1: status });
+  return t('لا يوجد رد صالح من الخادم.');
+}
+async function ensureFreshReply(key, text, refreshFn){
+  if(!isDuplicate(key, text)) return text;
+  const attempt = await refreshFn();
+  if(!isDuplicate(key, attempt)) return attempt;
+  return t('عذرًا، يبدو أنني كرّرت نفس الرد. سأحاول صياغة إجابة جديدة.');
+}
+
+async function callClaude(systemPrompt, history, meta){
+  const MAX_ATTEMPTS = 3;
+  const body = {
+    model: "gemini-flash-latest",
+    max_tokens: 1000,
+    system: systemPrompt,
+    messages: history,
+    temperature: 0.7,
+    frequency_penalty: 0.7,
+    presence_penalty: 0.7
+  };
+  let lastKind = 'network';
+  for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
+    if(attempt > 1) await sleep(1200 * (attempt - 1));
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30000);
+    let res;
+    try{
+      res = await fetch("http://localhost:5000/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: ctrl.signal,
+        body: JSON.stringify(body)
+      });
+    }catch(e){
+      if(e && e.name === 'AbortError') lastKind = 'timeout';
+      else lastKind = 'network';
+      continue;
+    }finally{
+      clearTimeout(timer);
+    }
+    if(res.status === 429 || res.status >= 500){
+      lastKind = 'server';
+      continue;
+    }
+    if(!res.ok){
+      state.offlineMode = true;
+      return translateServerError(res.status);
+    }
+    const data = await res.json().catch(() => null);
+    if(data && typeof data.text === 'string' && data.text.trim()){
+      state.offlineMode = false;
+      return data.text.trim();
+    }
+    lastKind = 'parse';
+  }
+  state.offlineMode = true;
+  if(lastKind === 'timeout') return t('انتهت مهلة الاتصال بالخادم. حاول مرة أخرى.');
+  if(lastKind === 'server') return t('نواجه ضغطاً في الخادم حالياً، يرجى المحاولة بعد قليل.');
+  return offlineReply(meta || {}, history);
+}
+
+function networkErrorMessage(code){
+  if(code === 'timeout') return t('انتهت مهلة الاتصال بالخادم. حاول مرة أخرى.');
+  if(code === 'server') return t('تعذر الاتصال بالمساعد: مشكلة في الخادم. تأكد من تشغيل proxy_server.py ثم أعد المحاولة.');
+  return t('تعذر الاتصال بالمساعد: مشكلة في الشبكة. حاول مرة أخرى.');
+}
+
+/* ---------------- Multi-Agent Router ---------------- */
+const AGENTS = {
+  doctor:     { key:'doctor',     scenario:'tutor',    label: () => t('معلم البلاك بورد'),   prompt: () => tutorSystemPrompt() },
+  academic:   { key:'academic',   scenario:'academic', label: () => t('المنظومة الأكاديمية'), prompt: () => academicSystemPrompt() },
+  blackboard: { key:'blackboard', scenario:'tutor',    label: () => t('نظام البلاك بورد'),    prompt: () => { const sec = getSection(state.profile.sectionId); return reviewSystemPrompt(state.tutor.reviewTopics || [], sec ? sec.course : ''); } }
+};
+function resolveAgent(chatKey){
+  if(chatKey === 'academic') return AGENTS.academic;
+  return state.tutor.mode === 'review' ? AGENTS.blackboard : AGENTS.doctor;
+}
+function router(agentKey, question){
+  const agent = AGENTS[agentKey];
+  if(!agent) return null;
+  return { agent, systemPrompt: agent.prompt(), question };
+}
+async function testAgents(){
+  const results = {};
+  for(const key of Object.keys(AGENTS)){
+    try{
+      const r = router(key, t('سؤال تجريبي'));
+      const reply = await callClaude(r.systemPrompt, [{ role:'user', content:t('سؤال تجريبي') }], { scenario:r.scenario, mode:'open', step:1, total:5, concept:t('سؤال تجريبي') });
+      results[key] = { agent: AGENTS[key].label(), reply:(reply || '').slice(0, 80), status: (reply && reply.trim()) ? 'OK' : 'EMPTY' };
+    }catch(e){
+      results[key] = { agent: AGENTS[key].label(), status:'ERROR', error:(e && e.message) || String(e) };
+    }
+  }
+  console.table(results);
+  return results;
+}
+window.testAgents = testAgents;
+
+function offlineReply(meta, history){
+  const L = state.lang === 'en';
+  const s = meta.scenario || '';
+  if(s === 'tutor'){
+    if(meta.mode === 'review'){
+      const total = meta.total || 1;
+      const step = Math.min(meta.step || 1, total);
+      if(step >= total){
+        return JSON.stringify({
+          message: L ? 'You reviewed the whole lecture correctly. Well done!' : 'راجعتَ المحاضرة بالكامل معي، أحسنت!',
+          phase:'mastered', step_number: total, total_steps_estimate: total,
+          concept_title: t('مراجعة محاضرة اليوم'), mastered:true
+        });
+      }
+      return JSON.stringify({
+        message: L ? ('Quick reminder of point ' + step + ' from today\u2019s lecture, then a short recall question.') : ('تذكير سريع بالنقطة ' + step + ' من المحاضرة، ثم سؤال استرجاع قصير.'),
+        phase:'explaining', step_number: step, total_steps_estimate: total,
+        concept_title: t('مراجعة محاضرة اليوم'), mastered:false
+      });
+    }
+    const userMsgs = history.filter(m=>m.role==='user').length;
+    const concept = meta.concept || '';
+    if(userMsgs <= 1){
+      return JSON.stringify({
+        message: L ? 'Great choice of concept. Let\u2019s start with a quick level test (two questions).' : 'أحسنت على اختيار المفهوم. لنبدأ باختبار تحديد مستوى سريع (سؤالان) حول هذا المفهوم.',
+        phase:'assessment', step_number:1, total_steps_estimate:5, concept_title: concept, mastered:false
+      });
+    }
+    if(userMsgs === 2){
+      return JSON.stringify({
+        message: L ? 'Good answer. Let\u2019s go over the part you missed, step by step.' : 'إجابة جيدة. لنراجع سويًا الجزء الذي أخطأت فيه خطوة بخطوة.',
+        phase:'explaining', step_number:2, total_steps_estimate:5, concept_title: concept, mastered:false
+      });
+    }
+    if(userMsgs === 3){
+      return JSON.stringify({
+        message: L ? 'Excellent. Here is a quick summary of the key points.' : 'ممتاز. هذا ملخص سريع لأهم نقاط المفهوم.',
+        phase:'summary', step_number:3, total_steps_estimate:5, concept_title: concept, mastered:false
+      });
+    }
+    if(userMsgs === 4){
+      return JSON.stringify({
+        message: L ? 'Now a new confirmation question to make sure you truly understood.' : 'الآن سؤال تأكيدي مختلف لنتأكد من فهمك العميق.',
+        phase:'verification', step_number:4, total_steps_estimate:5, concept_title: concept, mastered:false
+      });
+    }
+    return JSON.stringify({
+      message: L ? 'Excellent answers — you finished the session successfully!' : 'إجاباتك ممتازة، أنهيت الجلسة بنجاح!',
+      phase:'mastered', step_number:5, total_steps_estimate:5, concept_title: concept, mastered:true
+    });
+  }
+  if(s === 'academic'){
+    const last = history[history.length-1];
+    const q = last ? last.content : '';
+    if(/طالب آخر|بيانات غيره|بيانات سارة|بيانات أحمد|خصوصية|منطقي/.test(q)){
+      return '[POLICY_BLOCK] ' + (L
+        ? 'I cannot show any other student\u2019s data; that violates the Personal Data Protection Law (PDPL). For any official request, please contact the Deanship of Admission and Registration.'
+        : 'لا يمكنني عرض بيانات أي طالب آخر؛ ذلك يخالف نظام حماية البيانات الشخصية (PDPL). لأي طلب رسمي، تواصل مع عمادة القبول والتسجيل.');
+    }
+    return L
+      ? 'Based on your academic record, your registration for "Data Structures" was automatically rejected because the prerequisite "Introduction to Programming 2" is incomplete. Please resolve that requirement first; for the final decision contact the Deanship of Admission and Registration.'
+      : 'بناءً على سجلك الأكاديمي، رُفض تسجيلك في "هياكل البيانات" تلقائيًا لأن المتطلب السابق "مدخل إلى البرمجة 2" غير مكتمل. أنصحك بمعالجة هذا المتطلب أولًا، وللقرار النهائي تواصل مع عمادة القبول والتسجيل.';
+  }
+  if(s === 'suggestion'){
+    return L
+      ? 'Likely cause: the concept is abstract.\n1. Start with a concrete daily example.\n2. Use a different analogy tied to the previous lecture.\n3. Quick question: "Apply the idea to a new example."'
+      : 'سبب محتمل: المفهوم مجرد ويصعب ربطه بمثال ملموس.\n١. ابدأ بمثال يومي ملموس.\n٢. استخدم تشبيهًا مختلفًا واربطه بالمحاضرة السابقة.\n٣. سؤال تقييمي: "طبّق الفكرة على مثال جديد دون مساعدة."';
+  }
+  if(s === 'quiz'){
+    return L
+      ? '1. Why do you think this concept is confusing? (discussion: link to application)\n2. Where is the common mistake? (discussion: review steps)\n3. How do we tell the two cases apart? (discussion: comparison)\n4. Design an example that shows the idea. (discussion: student creativity)'
+      : '١. لماذا تعتقد أن هذا المفهوم محيّر؟ (نقطة نقاش: ربطه بالتطبيق)\n٢. أين يقع الخطأ الشائع عند الحل؟ (نقطة نقاش: مراجعة الخطوات)\n٣. كيف نميّز بين الحالتين؟ (نقطة نقاش: مقارنة)\n٤. صمم مثالًا يعكس الفكرة. (نقطة نقاش: إبداع الطالب)';
+  }
+  return L
+    ? 'Demo mode: the server is unreachable, this is a preview response.'
+    : 'وضع العرض التجريبي: تعذر الاتصال بالخادم، هذه استجابة معاينة.';
 }
 
 function escapeHtml(s){
@@ -1061,7 +1320,7 @@ function render(){
   if(state.view !== 'landing'){
     actions.innerHTML += `<button class="backbtn" onclick="goLanding()">${t('العودة للرئيسية')}</button>`;
   }
-  actions.innerHTML += `<button class="backbtn langbtn" onclick="toggleLang()">${state.lang === 'ar' ? '🌐 English' : '🌐 عربي'}</button>`;
+  actions.innerHTML += `<button class="backbtn langbtn" onclick="toggleLang()">${state.lang === 'ar' ? '🌐 ' + t('الإنجليزية') : '🌐 ' + t('العربية')}</button>`;
 
   if(state.view === 'landing') app.innerHTML = renderLanding();
   else if(state.view === 'studentEntry') app.innerHTML = renderStudentEntry();
@@ -1210,7 +1469,7 @@ function renderProfileCard(){
     <div class="prow"><span class="k">${t('المستوى')}</span><span class="v">${escapeHtml(t(p.level))}</span></div>
     <div class="prow"><span class="k">${t('المعدل التراكمي')}</span><span class="v">3.42 / 4.00</span></div>
     ${MOCK_COURSES.map(c=>`<div class="prow"><span class="k">${t(c.n)}</span><span class="v ${c.cls}">${c.g === 'غير مكتمل' ? t(c.g) : c.g}</span></div>`).join('')}
-    <div class="flag">${tpl('reg_flag', { course: t('هياكل البيانات') })}</div>
+    <div class="flag">${tpl('⚠ طلب تسجيل "{course}" مرفوض — متطلب سابق غير مكتمل', { course: t('هياكل البيانات') })}</div>
   </div>`;
 }
 
@@ -1223,7 +1482,7 @@ function renderReviewCard(){
   return `
   <div class="sandbox-box approved" style="border-style:solid;margin-bottom:18px;">
     <span class="sandbox-tag approved">${t('📋 مراجعة محاضرة اليوم متاحة')}</span>
-    <p style="font-size:13.5px;margin:6px 0 10px;">${tpl('review_card_text', { from: escapeHtml(t(range[0])), to: escapeHtml(t(range[range.length-1])), n: range.length })}</p>
+    <p style="font-size:13.5px;margin:6px 0 10px;">${tpl('راجع آخر محاضرة: من <strong>{from}</strong> إلى <strong>{to}</strong> ({n} نقطة، بالضبط كما أُخذت).', { from: escapeHtml(t(range[0])), to: escapeHtml(t(range[range.length-1])), n: range.length })}</p>
     <button class="approve-btn" onclick="startReview()">${t('ابدأ المراجعة')}</button>
   </div>`;
 }
@@ -1284,11 +1543,12 @@ function renderChat(key){
   const data = state[key];
   const bubbles = data.messages.map(m=>{
     if(m.role==='system') return `<div class="bubble system">${nl2br(m.text)}</div>`;
-    if(m.role==='policy') return `<div class="bubble policy"><span class="p-tag">${t('🛡 P-NODE — سياسة حماية البيانات')}</span>${nl2br(m.text)}</div>`;
+    if(m.role==='policy') return `<div class="bubble policy"><span class="p-tag">${t('🛡 P-NODE — سياسة حماية البيانات')} (${t('سياسة حماية البيانات الشخصية (PDPL)')})</span>${nl2br(m.text)}<div style="margin-top:8px;font-size:11px;line-height:1.6;color:#6e2c1c;background:#FBD9CE;border:1px dashed var(--brick);border-radius:8px;padding:6px 10px;"><strong>${t('أثر السياسة:')}</strong> ${t('تم منع الإجابة تلقائيًا لأن الطلب يخالف أحكام توطين البيانات والموافقة في نظام حماية البيانات الشخصية (PDPL).')}</div></div>`;
     return `<div class="bubble ${m.role}">${nl2br(m.text)}</div>`;
   }).join('');
   return `
   <div class="chat-shell">
+    ${state.offlineMode ? `<div style="font-size:12px;color:#6e2c1c;background:#FBD9CE;border:1px solid var(--brick);border-radius:10px;padding:8px 12px;margin-bottom:10px;">⚠ ${t('وضع العرض التجريبي: تعذر الاتصال بالخادم، تُعرض ردود معاينة.')}</div>` : ''}
     <div class="chat-log" id="log-${key}">
       ${bubbles || `<div class="bubble system">${t('ابدأ المحادثة برسالتك أدناه.')}</div>`}
       ${data.loading ? `<div class="bubble typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>` : ''}
@@ -1339,9 +1599,9 @@ function renderLastLectureSummary(lecture, qlog, sec, reviewCount){
   const endLabel = topics[lecture.endTopicIdx] || '';
   return `
   <div class="sandbox-box" style="margin-top:16px;">
-    <span class="sandbox-tag">${tpl('lecture_summary_tag', { date: new Date(lecture.endedAt).toLocaleDateString(dateLocale()) })}</span>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:4px 0 8px;">${tpl('lecture_covered', { a: escapeHtml(t(startLabel)), b: escapeHtml(t(endLabel)) })}</p>
-    ${typeof reviewCount==='number' && reviewCount>0 ? `<p style="font-size:12px;color:var(--teal);font-weight:700;margin:0 0 8px;">${tpl('reviewed_count', { n: reviewCount })}</p>` : ''}
+    <span class="sandbox-tag">${tpl('📋 ملخص آخر محاضرة — {date}', { date: new Date(lecture.endedAt).toLocaleDateString(dateLocale()) })}</span>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:4px 0 8px;">${tpl('غطّت من <strong>{a}</strong> إلى <strong>{b}</strong>', { a: escapeHtml(t(startLabel)), b: escapeHtml(t(endLabel)) })}</p>
+    ${typeof reviewCount==='number' && reviewCount>0 ? `<p style="font-size:12px;color:var(--teal);font-weight:700;margin:0 0 8px;">${tpl('✅ {n} طالب أكمل مراجعة هذه المحاضرة', { n: reviewCount })}</p>` : ''}
     ${rows.length ? `<div class="question-list" style="margin-top:8px;">${rows.map(([q,c])=>`<div class="q-row"><div class="qtext">${escapeHtml(t(q))}</div><span class="count-badge">${c}×</span></div>`).join('')}</div>` : `<p style="font-size:13px;color:var(--ink-soft);margin:6px 0 0;">${t('ما وصل أسئلة موثّقة خلال هذه المحاضرة.')}</p>`}
     <p style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">${t('راجعها بداية محاضرتك القادمة قبل ما تبدأ موضوع جديد.')}</p>
   </div>`;
@@ -1397,7 +1657,7 @@ function renderFaculty(){
   </div>
   </div>
   ${f.ownedSections.length>1 ? `<div class="chips" style="justify-content:flex-start;margin:-8px 0 18px;">${f.ownedSections.map(s=>`<span class="chip ${s.id===f.currentSectionId?'active-chip':''}" onclick="switchSection('${s.id}')">${escapeHtml(t(s.course))} — ${t('شعبة')} ${s.number}</span>`).join('')}</div>` : ''}
-  <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 6px;">${sec ? tpl('fac_sec_prefix', { n: sec.number, m: sec.topics.length }) + ' · ' : ''}${t('هذه القوائم خاصة بهذه الشعبة فقط ولا ترتبط بالنظام الأكاديمي للطلاب.')}</p>
+  <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 6px;">${sec ? tpl('شعبة {n} — {m} نقطة منهج', { n: sec.number, m: sec.topics.length }) + ' · ' : ''}${t('هذه القوائم خاصة بهذه الشعبة فقط ولا ترتبط بالنظام الأكاديمي للطلاب.')}</p>
 
   <div class="stat-row">
     <div class="stat-card"><div class="num mono">${totalQuestions}</div><div class="lbl">${t('سؤال من طلاب شعبتك')}</div></div>
@@ -1409,14 +1669,14 @@ function renderFaculty(){
   <div class="section-card">
     <div class="section-head">
       <div>
-        <h4>${tpl('lecture_section', { n: sec ? sec.number : '' })}</h4>
+        <h4>${tpl('محاضرة — شعبة {n}', { n: sec ? sec.number : '' })}</h4>
         <p>${activeLecture ? t('حدّد آخر نقطة وصلتوا لها وأنهِ المحاضرة عشان يبني عليها البلاك بورد لطلابك.') : t('حدّد من وين تبدأ اليوم — الافتراضي أول نقطة بعد آخر محاضرة.')}</p>
       </div>
     </div>
     ${activeLecture ? `
       <div class="sandbox-box approved" style="border-style:solid;">
-        <span class="sandbox-tag approved">${tpl('live_since', { time: new Date(activeLecture.startedAt).toLocaleTimeString(dateLocale(),{hour:'2-digit',minute:'2-digit'}), topic: escapeHtml(t(topics[activeLecture.startTopicIdx]||'')) })}</span>
-        <p style="font-size:13px;margin:10px 0 8px;">${tpl('q_received', { n: liveCount })} <button class="edit-link" onclick="refreshFaculty()">${t('🔄 تحديث')}</button></p>
+        <span class="sandbox-tag approved">${tpl('🔴 بدأت من {time} — من: {topic}', { time: new Date(activeLecture.startedAt).toLocaleTimeString(dateLocale(),{hour:'2-digit',minute:'2-digit'}), topic: escapeHtml(t(topics[activeLecture.startTopicIdx]||'')) })}</span>
+        <p style="font-size:13px;margin:10px 0 8px;">${tpl('{n} سؤال مستلم خلال هذه المحاضرة حتى الآن.', { n: liveCount })} <button class="edit-link" onclick="refreshFaculty()">${t('🔄 تحديث')}</button></p>
         <label style="display:block;font-size:12.5px;font-weight:700;color:var(--navy);margin:10px 0 6px;">${t('وصلتوا اليوم إلى:')}</label>
         <select id="fEndTopic">
           ${topics.map((tp,i)=>`<option value="${i}" ${i===activeLecture.startTopicIdx?'selected':''}>${escapeHtml(t(tp))}</option>`).join('')}
@@ -1462,8 +1722,8 @@ function renderFaculty(){
   <div class="fac-split">
     <div class="concept-list">
       ${conceptRows.length ? conceptRows.map(([name,count])=>`
-        <div class="concept-row ${f.selected===name?'active':''}" onclick="selectConcept('${escapeHtml(name).replace(/'/g,"\\'")}')">
-          <div><div class="name">${escapeHtml(t(name))}</div><div class="meta">${tpl('mastered_meta', { n: count, times: count===1?t('مرة'):t('مرات') })}</div></div>
+        <div class="concept-row ${f.selected===name?'active':''}" data-concept="${escapeHtml(name)}">
+          <div><div class="name">${escapeHtml(t(name))}</div><div class="meta">${tpl('أُتقن بعد شرح إضافي — {n} {times}', { n: count, times: count===1?t('مرة'):t('مرات') })}</div></div>
           <span class="count-badge">${count}</span>
         </div>`).join('') : `<div class="empty">${t('لا توجد مفاهيم مكتملة بعد لهذه الشعبة.')}</div>`}
     </div>
@@ -1508,7 +1768,16 @@ function switchTab(t){
   if(t==='blackboard') loadSectionProgress();
 }
 function toggleIntentInfo(){ state.showIntentInfo = !state.showIntentInfo; render(); }
-function editProfile(){ state.profile.filled=false; state.view='studentEntry'; render(); }
+function editProfile(){
+  state.profile.filled=false;
+  state.tutor = { messages: [], loading:false, started:false, mode:'open', reviewTopics:[], phase:'assessment', step:1, total:5, concept:'', mastered:false, questionLogged:false };
+  state.academic = { messages: [], loading:false, questionLogged:false };
+  state.offlineMode = false;
+  resetDupGuard('tutor');
+  resetDupGuard('academic');
+  state.view='studentEntry';
+  render();
+}
 
 function submitProfile(){
   const uid = document.getElementById('fUid').value.trim();
@@ -1635,20 +1904,24 @@ async function sendMessage(key){
 
   try{
     if(key === 'academic'){
+      const agent = resolveAgent(key);
       const history = data.messages.filter(m=>m.role!=='system').map(m=>({role: m.role==='policy' ? 'assistant' : m.role, content:m.text}));
-      const reply = await callClaude(academicSystemPrompt(), history);
-      let clean = reply.trim();
-      let isPolicy = false;
-      if(clean.startsWith('[POLICY_BLOCK]')){
-        isPolicy = true;
-        clean = clean.replace('[POLICY_BLOCK]', '').trim();
+      let reply = await callClaude(agent.prompt(), history, { scenario:'academic' });
+      let cleaned = reply.replace(/```json|```/g, '').trim();
+      const isPolicy = /^\[?POLICY_BLOCK\]?\s*/i.test(cleaned);
+      let clean = cleaned.replace(/^\[?POLICY_BLOCK\]?\s*/i, '').trim();
+      if(!isPolicy){
+        clean = await ensureFreshReply('academic', clean, async () => {
+          const retry = await callClaude(agent.prompt(), history.concat([{role:'assistant', content:clean},{role:'user', content:t('لا تكرر نفس إجابتك السابقة، أعد الصياغة من جديد بمحتوى مختلف.')}]), { scenario:'academic' });
+          return retry.replace(/```json|```/g, '').trim().replace(/^\[?POLICY_BLOCK\]?\s*/i, '').trim();
+        });
       }
       data.messages.push({role: isPolicy ? 'policy' : 'ai', text: clean});
     } else {
       await advanceTutor(text);
     }
   }catch(e){
-    data.messages.push({role:'system', text:t('تعذر الاتصال بالمساعد. حاول مرة أخرى.')});
+    data.messages.push({role:'system', text:networkErrorMessage(e && e.message)});
   }
   data.loading = false;
   render(); scrollLog(key);
@@ -1664,6 +1937,7 @@ async function startTutor(){
   if(!topic) return;
   const tr = state.tutor;
   tr.started = true;
+  resetDupGuard('tutor');
   tr.mode = 'open';
   tr.reviewTopics = [];
   tr.loading = true;
@@ -1675,9 +1949,9 @@ async function startTutor(){
   pushQuestionLog(topic, 'tutor', state.profile.sectionId);
   render();
   try{
-    await advanceTutor(topic, true);
+    await advanceTutor(topic);
   }catch(e){
-    tr.messages.push({role:'system', text:t('تعذر بدء الجلسة. حاول مرة أخرى.')});
+    tr.messages.push({role:'system', text:networkErrorMessage(e && e.message)});
   }
   tr.loading = false;
   render(); scrollLog('tutor');
@@ -1690,6 +1964,7 @@ async function startReview(){
   const topics = sec.topics.slice(lec.startTopicIdx, lec.endTopicIdx+1);
   const tr = state.tutor;
   tr.started = true;
+  resetDupGuard('tutor');
   tr.mode = 'review';
   tr.reviewTopics = topics;
   tr.loading = true;
@@ -1697,26 +1972,26 @@ async function startReview(){
   tr.step = 1; tr.total = topics.length; tr.concept = t('مراجعة محاضرة اليوم');
   tr.messages = [{role:'user', text: t('ابدأ المراجعة')}];
   tr.questionLogged = true;
-  pushQuestionLog(tpl('review_log_prefix', { a: t(topics[0]), b: t(topics[topics.length-1]) }), 'review', state.profile.sectionId);
+  pushQuestionLog(tpl('مراجعة المحاضرة: {a} ← {b}', { a: t(topics[0]), b: t(topics[topics.length-1]) }), 'review', state.profile.sectionId);
   render();
   try{
-    await advanceTutor(t('ابدأ المراجعة'), true);
+    await advanceTutor(t('ابدأ المراجعة'));
   }catch(e){
-    tr.messages.push({role:'system', text:t('تعذر بدء المراجعة. حاول مرة أخرى.')});
+    tr.messages.push({role:'system', text:networkErrorMessage(e && e.message)});
   }
   tr.loading = false;
   render(); scrollLog('tutor');
 }
 
-async function advanceTutor(userText, isFirst){
+async function advanceTutor(userText){
   const t = state.tutor;
-  const sec = getSection(state.profile.sectionId);
   const history = t.messages.filter(m=>m.role==='user'||m.role==='ai').map(m=>({
     role: m.role==='ai' ? 'assistant' : 'user',
     content: m.role==='ai' ? m.rawJson || m.text : m.text
   }));
-  const systemPrompt = (t.mode==='review' ? reviewSystemPrompt(t.reviewTopics, sec?sec.course:'') : TUTOR_SYSTEM_PROMPT) + langInstruction();
-  const raw = await callClaude(systemPrompt, history);
+  const agent = resolveAgent('tutor');
+  const systemPrompt = agent.prompt() + langInstruction();
+  const raw = await callClaude(systemPrompt, history, { scenario:'tutor', mode:t.mode, phase:t.phase, step:t.step, total:t.total, concept:t.concept });
   let parsed;
   try{
     const cleaned = raw.replace(/```json|```/g,'').trim();
@@ -1724,12 +1999,23 @@ async function advanceTutor(userText, isFirst){
   }catch(e){
     parsed = { message: raw, phase:'assessment', step_number:t.step, total_steps_estimate:t.total, concept_title:t.concept, mastered:false };
   }
+  if(parsed && typeof parsed.message === 'string'){
+    parsed.message = await ensureFreshReply('tutor', parsed.message, async () => {
+      const retry = await callClaude(systemPrompt, history.concat([{role:'assistant', content:raw},{role:'user', content:t('لا تكرر نفس إجابتك السابقة، أعد الصياغة من جديد بمحتوى مختلف.')}]), { scenario:'tutor', mode:t.mode, phase:t.phase, step:t.step, total:t.total, concept:t.concept });
+      try{
+        const rp = JSON.parse(retry.replace(/```json|```/g,'').trim());
+        return (rp && rp.message) ? rp.message : retry;
+      }catch(e2){ return retry; }
+    });
+  }
   t.messages.push({role:'ai', text: parsed.message || '...', rawJson: JSON.stringify(parsed)});
-  t.phase = parsed.phase || t.phase;
-  t.step = parsed.step_number || t.step;
+  const PHASES = ['assessment','explaining','summary','verification','mastered'];
+  t.phase = PHASES.includes(parsed.phase) ? parsed.phase : t.phase;
+  t.step = Math.max(t.step, parsed.step_number || t.step);
   t.total = parsed.total_steps_estimate || t.total;
   if(t.mode!=='review') t.concept = parsed.concept_title || t.concept;
-  if(parsed.mastered){
+  const minMasterStep = t.mode === 'review' ? Math.max(1, Math.min(3, t.total || 3)) : 3;
+  if(parsed.mastered && t.step >= minMasterStep){
     t.mastered = true;
     if(t.mode==='review'){
       await pushReviewLog(state.profile.sectionId);
@@ -1752,10 +2038,10 @@ async function generateSuggestion(){
   f.suggestionApproved = false;
   render();
   try{
-    const reply = await callClaude(suggestionPrompt(f.selected, sec?sec.course:''), [{role:'user', content:'ابدأ'}]);
+    const reply = await callClaude(suggestionPrompt(f.selected, sec?sec.course:''), [{role:'user', content:'ابدأ'}], { scenario:'suggestion' });
     f.suggestion = reply.trim();
   }catch(e){
-    f.suggestion = t('تعذر توليد الاقتراح. حاول مرة أخرى.');
+    f.suggestion = networkErrorMessage(e && e.message);
   }
   f.suggestionLoading = false;
   render();
@@ -1785,10 +2071,10 @@ async function generateQuiz(){
   f.quizApproved = false;
   render();
   try{
-    const reply = await callClaude(quizPrompt(questionRows, conceptRows, sec?sec.course:''), [{role:'user', content:'ابدأ'}]);
+    const reply = await callClaude(quizPrompt(questionRows, conceptRows, sec?sec.course:''), [{role:'user', content:'ابدأ'}], { scenario:'quiz' });
     f.quizText = reply.trim();
   }catch(e){
-    f.quizText = t('تعذر توليد الأسئلة. حاول مرة أخرى.');
+    f.quizText = networkErrorMessage(e && e.message);
   }
   f.quizLoading = false;
   render();
@@ -1850,6 +2136,11 @@ function attachHandlers(){
   scrollLog('academic'); scrollLog('tutor');
 }
 
+initSeedStorage();
+document.getElementById('app').addEventListener('click', function(e){
+  const row = e.target.closest('.concept-row[data-concept]');
+  if(row) selectConcept(row.getAttribute('data-concept'));
+});
 render();
 document.documentElement.setAttribute('lang', state.lang);
 document.documentElement.setAttribute('dir', state.lang === 'ar' ? 'rtl' : 'ltr');
