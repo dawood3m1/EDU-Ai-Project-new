@@ -531,7 +531,9 @@ const state = {
     instructorName:null, ownedSections:[], currentSectionId:null,
     conceptLog: [], questionLog: [], actionLog: [], lectures: [], reviewLog: [], loaded:false,
     selected:null, suggestion:'', suggestionLoading:false, suggestionApproved:false,
-    quizText:'', quizLoading:false, quizApproved:false
+    examMode:'gaps', examTopicIdx:'', examLevel:'mixed',
+    examText:'', examLoading:false, examApproved:false,
+    examChat:[], examChatLoading:false
   }
 };
 
@@ -672,15 +674,28 @@ const i18n = {
   '✅ {n} طالب أكمل مراجعة هذه المحاضرة': '✅ {n} student(s) completed this lecture\u2019s review',
   'ما وصل أسئلة موثّقة خلال هذه المحاضرة.': 'No documented questions arrived during this lecture.',
   'راجعها بداية محاضرتك القادمة قبل ما تبدأ موضوع جديد.': 'Review it at the start of your next lecture before starting a new topic.',
-  'توليد أسئلة لنقاش المحاضرة القادمة': 'Generate Discussion Questions for the Next Lecture',
-  'مجمّعة تلقائيًا من الفجوات المعرفية للطلاب لعرضها عليهم في المحاضرة كأمثلة تطبيقية.': 'Auto-collected from students\u2019 knowledge gaps to present in the lecture as applied examples.',
+  'توليد أسئلة اختبار': 'Generate Exam Questions',
+  'اختر أسلوب توليد الأسئلة، حدد الموضوع والمستوى المناسبين، ثم ناقشها مع المساعد قبل اعتمادها.': 'Choose how to generate the questions, pick the topic and level, then discuss them with the assistant before approving.',
   'جاري التوليد...': 'Generating...',
-  'ولّـد أسئلة نقاش بناءً على هذه الفجوات': 'Generate Discussion Questions from These Gaps',
+  'ولّد أسئلة الاختبار': 'Generate Exam Questions',
   'لا توجد أسئلة مسجلة بعد لهذه الشعبة — جرّب فتح جلسة من واجهة الطالب بنفس المقرر والشعبة.': 'No recorded questions for this section yet — try opening a session from the student UI with the same course and section.',
-  '✅ جاهز للعرض في المحاضرة': '✅ Ready to present in lecture',
+  '✅ الأسئلة جاهزة كاختبار معتمد': '✅ Questions ready as an approved exam',
   '🧪 معاينة (Sandbox) — لم يُعتمد بعد': '🧪 Preview (Sandbox) — not approved yet',
   'تم الاعتماد للحفظ — مسجَّل في سجل الإجراءات أدناه.': 'Approved and saved — recorded in the action log below.',
-  'اعتماد للعرض في المحاضرة القادمة': 'Approve for next lecture',
+  'اعتماد الأسئلة النهائية': 'Approve Final Questions',
+  'أسلوب التوليد': 'Generation method',
+  'بناءً على فجوات الطلاب الفعلية': 'Based on students\u2019 actual gaps',
+  'أسئلة عادية على موضوع محدد': 'Regular questions on a specific topic',
+  'موضوع الاختبار': 'Exam topic',
+  'مستوى صعوبة الأسئلة': 'Question difficulty level',
+  'سهل': 'Easy',
+  'متوسط': 'Medium',
+  'صعب': 'Hard',
+  'متنوع (يغطي كل المستويات)': 'Mixed (covers all levels)',
+  '💬 ناقش الأسئلة مع المساعد قبل الاعتماد': '💬 Discuss the questions with the assistant before approving',
+  'اكتب ملاحظتك على الأسئلة أعلاه، مثل تغيير الصعوبة أو حذف سؤال، وسيعيد المساعد صياغتها بناءً على ملاحظتك.': 'Write your feedback on the questions above, like changing the difficulty or removing a question, and the assistant will revise them accordingly.',
+  'اكتب ملاحظتك أو طلب تعديل...': 'Type your feedback or edit request...',
+  'استخدم هذه النسخة': 'Use this version',
   'أُتقن بعد شرح إضافي — {n} {times}': 'Mastered after extra explanation — {n} {times}',
   'مرة': 'time',
   'مرات': 'times',
@@ -915,10 +930,24 @@ function suggestionPrompt(concept, courseName){
 ٣. سؤال تقييمي سريع واحد يمكن طرحه في المحاضرة للتأكد من الاستيعاب.${langClause()}${langInstruction()}`;
 }
 
-function quizPrompt(questionRows, conceptRows, courseName){
+function examLevelClause(level){
+  if(level==='easy') return 'بمستوى سهل يناسب الطلاب المتعثرين، أسئلة مباشرة تتحقق من الفهم الأساسي للمفهوم.';
+  if(level==='hard') return 'بمستوى صعب يناسب الطلاب المتفوقين، أسئلة تحليلية وتطبيقية متقدمة.';
+  if(level==='medium') return 'بمستوى متوسط يناسب أغلب الطلاب، توازن بين الفهم الأساسي والتطبيق.';
+  return 'متنوعة المستوى (سهل، متوسط، صعب) بحيث تغطي جميع مستويات الطلاب في الشعبة.';
+}
+function examPrompt(mode, topicLabel, level, questionRows, conceptRows, courseName){
   const qList = questionRows.slice(0,6).map(r => '- ' + t(r[0]) + ' (' + t('تكرر') + ' ' + r[1] + ' ' + t('مرة') + ')').join('\n') || t('لا توجد أسئلة مسجلة بعد.');
   const cList = conceptRows.slice(0,6).map(r => '- ' + t(r[0]) + ' (' + t('أُتقن بعد شرح إضافي') + ' ' + r[1] + ' ' + t('مرة') + ')').join('\n') || t('لا توجد مفاهيم مسجلة بعد.');
-  return `أنت أستاذ جامعي تدرّس مقرر "${t(courseName)||''}" وتصمم أسئلة نقاش ومراجعة بناءً على بيانات فعلية من مساعد ذكاء اصطناعي تعليمي، توضّح أين يتعثر طلاب شعبتك تحديدًا.
+  const levelClause = examLevelClause(level);
+  if(mode === 'topic'){
+    return `أنت أستاذ جامعي تدرّس مقرر "${t(courseName)||''}" وتصمم أسئلة اختبار حقيقية لتقييم الطلاب حول موضوع محدد من المنهج.
+
+الموضوع المطلوب توليد أسئلة الاختبار منه تحديدًا: "${t(topicLabel)}"
+
+صمم 4 أسئلة اختبار ${levelClause} حول هذا الموضوع تحديدًا فقط، ولا تخرج عنه. اكتب بعد كل سؤال الإجابة النموذجية بين قوسين. اكتب بدون Markdown، مرقّمة بالأرقام العربية (١، ٢، ٣، ٤).${langClause()}${langInstruction()}`;
+  }
+  return `أنت أستاذ جامعي تدرّس مقرر "${t(courseName)||''}" وتصمم أسئلة اختبار بناءً على بيانات فعلية من مساعد ذكاء اصطناعي تعليمي، توضّح أين يتعثر طلاب شعبتك تحديدًا.
 
 الأسئلة والمواضيع الأكثر تكرارًا من طلاب شعبتك:
 ${qList}
@@ -926,7 +955,15 @@ ${qList}
 المفاهيم التي احتاجت شرحًا إضافيًا حتى أُتقنت:
 ${cList}
 
-صمم 4 أسئلة بناءً على هذه الفجوات المعرفية لعرضها ومناقشتها مع الطلاب في المحاضرة القادمة (أسئلة للنقاش والشرح وليست لاختبارهم فعلياً). اكتب بعد كل سؤال الإجابة النموذجية أو نقطة النقاش المستهدفة بين قوسين. اكتب بدون Markdown، مرقّمة بالأرقام العربية (١، ٢، ٣، ٤).${langClause()}${langInstruction()}`;
+صمم 4 أسئلة اختبار ${levelClause} بناءً على هذه الفجوات المعرفية، لتقييم مدى تجاوز الطلاب لهذه الصعوبات الفعلية. اكتب بعد كل سؤال الإجابة النموذجية بين قوسين. اكتب بدون Markdown، مرقّمة بالأرقام العربية (١، ٢، ٣، ٤).${langClause()}${langInstruction()}`;
+}
+function examChatSystemPrompt(examText, courseName){
+  return `أنت مساعد تصميم اختبارات يساعد أستاذًا جامعيًا يدرّس مقرر "${t(courseName)||''}" على مراجعة وتحسين مجموعة أسئلة اختبار قبل اعتمادها رسميًا.
+
+مجموعة الأسئلة الحالية المطروحة للنقاش:
+${examText}
+
+مهمتك: ناقش الأستاذ حول هذه الأسئلة وأجب عن استفساراته بإيجاز. إذا طلب منك تعديلًا (إضافة سؤال، حذف سؤال، تغيير مستوى الصعوبة، إعادة صياغة، تغيير الموضوع الفرعي)، أعد كتابة القائمة الكاملة المعدَّلة للأسئلة بنفس تنسيق الترقيم بالأرقام العربية (١، ٢، ٣...) مع الإجابة النموذجية بين قوسين بعد كل سؤال، بحيث يمكن اعتمادها مباشرة دون تعديل إضافي. إذا كان سؤاله نقاشيًا فقط بدون طلب تعديل فعلي، أجب بإيجاز دون إعادة كتابة الأسئلة كاملة. اكتب بدون Markdown.${langClause()}${langInstruction()}`;
 }
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -1110,10 +1147,15 @@ function offlineReply(meta, history){
       ? 'Likely cause: the concept is abstract.\n1. Start with a concrete daily example.\n2. Use a different analogy tied to the previous lecture.\n3. Quick question: "Apply the idea to a new example."'
       : 'سبب محتمل: المفهوم مجرد ويصعب ربطه بمثال ملموس.\n١. ابدأ بمثال يومي ملموس.\n٢. استخدم تشبيهًا مختلفًا واربطه بالمحاضرة السابقة.\n٣. سؤال تقييمي: "طبّق الفكرة على مثال جديد دون مساعدة."';
   }
-  if(s === 'quiz'){
+  if(s === 'exam'){
     return L
-      ? '1. Why do you think this concept is confusing? (discussion: link to application)\n2. Where is the common mistake? (discussion: review steps)\n3. How do we tell the two cases apart? (discussion: comparison)\n4. Design an example that shows the idea. (discussion: student creativity)'
-      : '١. لماذا تعتقد أن هذا المفهوم محيّر؟ (نقطة نقاش: ربطه بالتطبيق)\n٢. أين يقع الخطأ الشائع عند الحل؟ (نقطة نقاش: مراجعة الخطوات)\n٣. كيف نميّز بين الحالتين؟ (نقطة نقاش: مقارنة)\n٤. صمم مثالًا يعكس الفكرة. (نقطة نقاش: إبداع الطالب)';
+      ? '1. Explain the concept in your own words. (model answer: core definition)\n2. Solve a direct application of the idea. (model answer: standard steps)\n3. Where is the common mistake made here? (model answer: correct reasoning)\n4. Apply the concept to a new example. (model answer: correct application)'
+      : '١. اشرح المفهوم بأسلوبك الخاص. (الإجابة النموذجية: التعريف الأساسي)\n٢. حل تطبيقًا مباشرًا على الفكرة. (الإجابة النموذجية: الخطوات القياسية)\n٣. أين يقع الخطأ الشائع هنا؟ (الإجابة النموذجية: المنطق الصحيح)\n٤. طبّق المفهوم على مثال جديد. (الإجابة النموذجية: التطبيق الصحيح)';
+  }
+  if(s === 'examChat'){
+    return L
+      ? 'Noted — once the server connection is back, I can revise the questions based on your feedback.'
+      : 'تم تسجيل ملاحظتك — بمجرد عودة الاتصال بالخادم يمكنني تعديل الأسئلة بناءً عليها.';
   }
   return L
     ? 'Demo mode: the server is unreachable, this is a preview response.'
@@ -1208,8 +1250,9 @@ async function resetFacultyDemoData(){
   state.faculty.selected = null;
   state.faculty.suggestion = '';
   state.faculty.suggestionApproved = false;
-  state.faculty.quizText = '';
-  state.faculty.quizApproved = false;
+  state.faculty.examText = '';
+  state.faculty.examApproved = false;
+  state.faculty.examChat = [];
   render();
 }
 
@@ -1696,13 +1739,38 @@ function renderFaculty(){
   <div class="section-card">
     <div class="section-head">
       <div>
-        <h4>${t('توليد أسئلة لنقاش المحاضرة القادمة')}</h4>
-        <p>${t('مجمّعة تلقائيًا من الفجوات المعرفية للطلاب لعرضها عليهم في المحاضرة كأمثلة تطبيقية.')}</p>
+        <h4>${t('توليد أسئلة اختبار')}</h4>
+        <p>${t('اختر أسلوب توليد الأسئلة، حدد الموضوع والمستوى المناسبين، ثم ناقشها مع المساعد قبل اعتمادها.')}</p>
       </div>
-      <button class="quiz-btn" onclick="generateQuiz()" ${(f.quizLoading || (!questionRows.length && !conceptRows.length))?'disabled':''}>
-        ${f.quizLoading ? t('جاري التوليد...') : t('ولّـد أسئلة نقاش بناءً على هذه الفجوات')}
-      </button>
     </div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
+      <div style="flex:1;min-width:200px;">
+        <label style="display:block;font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:6px;">${t('أسلوب التوليد')}</label>
+        <select id="fExamMode" onchange="facultyExamModeChange(this.value)">
+          <option value="gaps" ${f.examMode==='gaps'?'selected':''}>${t('بناءً على فجوات الطلاب الفعلية')}</option>
+          <option value="topic" ${f.examMode==='topic'?'selected':''}>${t('أسئلة عادية على موضوع محدد')}</option>
+        </select>
+      </div>
+      ${f.examMode==='topic' ? `
+      <div style="flex:1;min-width:200px;">
+        <label style="display:block;font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:6px;">${t('موضوع الاختبار')}</label>
+        <select id="fExamTopic" onchange="state.faculty.examTopicIdx=this.value">
+          ${topics.map((tp,i)=>`<option value="${i}" ${String(i)===String(f.examTopicIdx)?'selected':''}>${escapeHtml(t(tp))}</option>`).join('')}
+        </select>
+      </div>` : ''}
+      <div style="flex:1;min-width:200px;">
+        <label style="display:block;font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:6px;">${t('مستوى صعوبة الأسئلة')}</label>
+        <select id="fExamLevel" onchange="state.faculty.examLevel=this.value">
+          <option value="easy" ${f.examLevel==='easy'?'selected':''}>${t('سهل')}</option>
+          <option value="medium" ${f.examLevel==='medium'?'selected':''}>${t('متوسط')}</option>
+          <option value="hard" ${f.examLevel==='hard'?'selected':''}>${t('صعب')}</option>
+          <option value="mixed" ${f.examLevel==='mixed'?'selected':''}>${t('متنوع (يغطي كل المستويات)')}</option>
+        </select>
+      </div>
+    </div>
+    <button class="quiz-btn" onclick="generateExam()" ${(f.examLoading || (f.examMode==='gaps' && !questionRows.length && !conceptRows.length) || (f.examMode==='topic' && !topics.length))?'disabled':''}>
+      ${f.examLoading ? t('جاري التوليد...') : t('ولّد أسئلة الاختبار')}
+    </button>
     <div class="question-list">
       ${questionRows.length ? questionRows.slice(0,8).map(([q,count])=>`
         <div class="q-row">
@@ -1710,11 +1778,25 @@ function renderFaculty(){
           <span class="count-badge">${count}×</span>
         </div>`).join('') : `<div class="empty">${t('لا توجد أسئلة مسجلة بعد لهذه الشعبة — جرّب فتح جلسة من واجهة الطالب بنفس المقرر والشعبة.')}</div>`}
     </div>
-    ${f.quizText ? `
-      <div class="sandbox-box ${f.quizApproved?'approved':''}">
-        <span class="sandbox-tag ${f.quizApproved?'approved':''}">${f.quizApproved?t('✅ جاهز للعرض في المحاضرة'):t('🧪 معاينة (Sandbox) — لم يُعتمد بعد')}</span>
-        <div class="quiz-output">${nl2br(f.quizText)}</div>
-        ${f.quizApproved ? `<div class="approved-note">${t('تم الاعتماد للحفظ — مسجَّل في سجل الإجراءات أدناه.')}</div>` : `<button class="approve-btn" onclick="approveQuiz()">${t('اعتماد للعرض في المحاضرة القادمة')}</button>`}
+    ${f.examText ? `
+      <div class="sandbox-box ${f.examApproved?'approved':''}">
+        <span class="sandbox-tag ${f.examApproved?'approved':''}">${f.examApproved?t('✅ الأسئلة جاهزة كاختبار معتمد'):t('🧪 معاينة (Sandbox) — لم يُعتمد بعد')}</span>
+        <div class="quiz-output">${nl2br(f.examText)}</div>
+        ${f.examApproved ? `<div class="approved-note">${t('تم الاعتماد للحفظ — مسجَّل في سجل الإجراءات أدناه.')}</div>` : `<button class="approve-btn" onclick="approveExam()">${t('اعتماد الأسئلة النهائية')}</button>`}
+      </div>
+      <div style="margin-top:14px;border:1px dashed var(--line);border-radius:12px;padding:12px;">
+        <h5 style="margin:0 0 4px;font-size:13px;color:var(--navy);">${t('💬 ناقش الأسئلة مع المساعد قبل الاعتماد')}</h5>
+        <p style="font-size:11.5px;color:var(--ink-soft);margin:0 0 10px;">${t('اكتب ملاحظتك على الأسئلة أعلاه، مثل تغيير الصعوبة أو حذف سؤال، وسيعيد المساعد صياغتها بناءً على ملاحظتك.')}</p>
+        <div class="chat-log" id="log-examChat" style="max-height:220px;">
+          ${f.examChat.length ? f.examChat.map((m,i)=>`
+            <div class="bubble ${m.role}">${nl2br(m.text)}${m.role==='ai' ? `<div style="margin-top:6px;"><button class="edit-link" onclick="adoptExamVersion(${i})">${t('استخدم هذه النسخة')}</button></div>` : ''}</div>`).join('')
+            : `<div class="bubble system">${t('ابدأ المحادثة برسالتك أدناه.')}</div>`}
+          ${f.examChatLoading ? `<div class="bubble typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>` : ''}
+        </div>
+        <div class="chat-input">
+          <input id="fExamChatInput" type="text" placeholder="${t('اكتب ملاحظتك أو طلب تعديل...')}" ${f.examChatLoading?'disabled':''} />
+          <button class="send-btn" onclick="sendExamChat()" ${f.examChatLoading?'disabled':''}>${t('إرسال')}</button>
+        </div>
       </div>
     ` : ''}
   </div>
@@ -1876,8 +1958,10 @@ function switchSection(id){
   state.faculty.selected = null;
   state.faculty.suggestion = '';
   state.faculty.suggestionApproved = false;
-  state.faculty.quizText = '';
-  state.faculty.quizApproved = false;
+  state.faculty.examText = '';
+  state.faculty.examApproved = false;
+  state.faculty.examChat = [];
+  state.faculty.examTopicIdx = '';
   render();
 }
 
@@ -2055,9 +2139,17 @@ async function approveSuggestion(){
   render();
 }
 
-async function generateQuiz(){
+async function generateExam(){
   const f = state.faculty;
   const sec = getSection(f.currentSectionId);
+  const topics = sec ? sec.topics : [];
+  const modeEl = document.getElementById('fExamMode');
+  const levelEl = document.getElementById('fExamLevel');
+  const topicEl = document.getElementById('fExamTopic');
+  if(modeEl) f.examMode = modeEl.value;
+  if(levelEl) f.examLevel = levelEl.value;
+  if(topicEl) f.examTopicIdx = topicEl.value;
+
   const cLog = f.conceptLog.filter(e=>e.sectionId===f.currentSectionId);
   const qLog = f.questionLog.filter(e=>e.sectionId===f.currentSectionId);
   const conceptCounts = {};
@@ -2066,25 +2158,59 @@ async function generateQuiz(){
   const questionCounts = {};
   qLog.forEach(e => { const k=(e.question||'').trim(); if(k) questionCounts[k]=(questionCounts[k]||0)+1; });
   const questionRows = Object.entries(questionCounts).sort((a,b)=>b[1]-a[1]);
+  const topicLabel = (f.examMode==='topic' && topics[f.examTopicIdx]) ? topics[f.examTopicIdx] : '';
 
-  f.quizLoading = true;
-  f.quizApproved = false;
+  f.examLoading = true;
+  f.examApproved = false;
+  f.examChat = [];
   render();
   try{
-    const reply = await callClaude(quizPrompt(questionRows, conceptRows, sec?sec.course:''), [{role:'user', content:'ابدأ'}], { scenario:'quiz' });
-    f.quizText = reply.trim();
+    const reply = await callClaude(examPrompt(f.examMode, topicLabel, f.examLevel, questionRows, conceptRows, sec?sec.course:''), [{role:'user', content:'ابدأ'}], { scenario:'exam' });
+    f.examText = reply.trim();
   }catch(e){
-    f.quizText = networkErrorMessage(e && e.message);
+    f.examText = networkErrorMessage(e && e.message);
   }
-  f.quizLoading = false;
+  f.examLoading = false;
   render();
 }
-async function approveQuiz(){
+async function approveExam(){
   const f = state.faculty;
-  f.quizApproved = true;
+  f.examApproved = true;
   render();
-  const updated = await pushActionLog(t('اعتماد أسئلة نقاش للمحاضرة مولّدة من فجوات الطلاب'));
+  const updated = await pushActionLog(t('اعتماد أسئلة اختبار مولّدة'));
   if(updated) f.actionLog = updated;
+  render();
+}
+async function sendExamChat(){
+  const f = state.faculty;
+  const sec = getSection(f.currentSectionId);
+  const input = document.getElementById('fExamChatInput');
+  const text = input.value.trim();
+  if(!text) return;
+  input.value = '';
+  f.examChat.push({role:'user', text});
+  f.examChatLoading = true;
+  render();
+  try{
+    const history = f.examChat.filter(m=>m.role!=='system').map(m=>({role: m.role==='ai' ? 'assistant' : m.role, content:m.text}));
+    const reply = await callClaude(examChatSystemPrompt(f.examText, sec?sec.course:''), history, { scenario:'examChat' });
+    f.examChat.push({role:'ai', text: reply.trim()});
+  }catch(e){
+    f.examChat.push({role:'system', text:networkErrorMessage(e && e.message)});
+  }
+  f.examChatLoading = false;
+  render();
+}
+function adoptExamVersion(idx){
+  const f = state.faculty;
+  const msg = f.examChat[idx];
+  if(!msg) return;
+  f.examText = msg.text;
+  f.examApproved = false;
+  render();
+}
+function facultyExamModeChange(v){
+  state.faculty.examMode = v;
   render();
 }
 
@@ -2121,7 +2247,7 @@ async function refreshFaculty(){
 }
 
 function attachHandlers(){
-  ['input-academic','input-tutor','starterInput','fUid', 'fPass', 'fFacultyPass'].forEach(id=>{
+  ['input-academic','input-tutor','starterInput','fUid', 'fPass', 'fFacultyPass', 'fExamChatInput'].forEach(id=>{
     const elx = document.getElementById(id);
     if(!elx) return;
     elx.addEventListener('keydown', (e)=>{
@@ -2129,6 +2255,7 @@ function attachHandlers(){
         if(id==='starterInput') startTutor();
         else if(id==='fUid' || id==='fPass') submitProfile();
         else if(id==='fFacultyPass') submitInstructor();
+        else if(id==='fExamChatInput') sendExamChat();
         else sendMessage(id.replace('input-',''));
       }
     });
