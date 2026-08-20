@@ -1,4 +1,8 @@
 <!DOCTYPE html>
+<!--
+  Student Interface | واجهة الطالب
+  ترسل سؤال الطالب إلى الباك إند وتعرض الإجابة النهائية فقط بدون إظهار JSON أو metadata داخلية.
+-->
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -7,6 +11,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
 <style>
   :root{
     --paper:#F5F1E6;
@@ -198,6 +205,7 @@
     max-width:80%;padding:12px 15px;border-radius:14px;font-size:14.5px;line-height:1.7;white-space:pre-wrap;
   }
   .bubble.ai{align-self:flex-start;background:var(--white);border:1px solid var(--line);border-start-start-radius:4px;}
+  .msg-source{margin-top:8px;padding-top:6px;border-top:1px dashed var(--line);font-size:11px;color:var(--ink-soft);white-space:normal;}
   .bubble.user{align-self:flex-end;background:var(--navy);color:var(--white);border-start-end-radius:4px;}
   .bubble.system{align-self:center;background:var(--bronze-soft);color:#5b4526;font-size:12.5px;border-radius:10px;}
   .bubble.typing{align-self:flex-start;display:flex;gap:5px;padding:14px 16px;background:var(--white);border:1px solid var(--line);}
@@ -809,7 +817,10 @@ const i18n = {
   'التكرار (Recursion) ليش صعب أستوعبه؟': 'Why is Recursion hard to grasp?',
   'التعقيد الزمني Big O كيف أحسبه؟': 'How do I compute Big O time complexity?',
   'وش الفرق بين المكدس والطابور؟': 'What\u2019s the difference between a stack and a queue?',
-  'وش الفرق بين الشجرة الثنائية وشجرة البحث؟': 'What\u2019s the difference between a binary tree and a search tree?'
+  'وش الفرق بين الشجرة الثنائية وشجرة البحث؟': 'What\u2019s the difference between a binary tree and a search tree?',
+
+  /* RAG source citation line under a tutor answer */
+  'المصدر: {file} — الصفحة {page}': 'Source: {file} — page {page}'
 };
 
 const dateLocale = () => state.lang === 'en' ? 'en-US' : 'ar-SA';
@@ -853,6 +864,12 @@ function formatComplianceKB(kb){
   return JSON.stringify(kb, null, 2);
 }
 
+// Builds the system prompt for the "academic system" scenario (registration
+// issues, PDPL policy rules) — this scenario does not use RAG; it is grounded
+// only in the mock student record and the compliance knowledge base object.
+// تبني هذه الدالة الـsystem prompt لسيناريو "النظام الأكاديمي" (مشاكل التسجيل،
+// قواعد PDPL) — هذا السيناريو لا يستخدم RAG إطلاقًا؛ يعتمد فقط على السجل
+// الأكاديمي الوهمي وكائن قاعدة معرفة الامتثال.
 function academicSystemPrompt(){
   const p = state.profile;
   return `أنت "المساعد الأكاديمي" ضمن منصة EDU AI في جامعة سعودية، ومساعد ذكاء اصطناعي امتثالي. تتحدث فقط بالعربية الفصحى المبسطة بأسلوب رسمي ودود ومختصر (فقرة أو فقرتين كحد أقصى، بدون Markdown ولا رموز زخرفية).
@@ -879,39 +896,92 @@ ${formatComplianceKB(SDAIA_COMPLIANCE_KB)}
 - ممنوع منعًا باتًا اختراع أو افتراض أو تخمين أي إرشادات قانونية أو أخلاقية؛ اعتمد حصريًا على كائن JSON المرفق أعلاه (Zero Hallucination).${langInstruction()}`;
 }
 
-function tutorSystemPrompt(){
+// Turns the RAG chunks returned by /api/rag/query into a block of text that
+// gets embedded inside the tutor's system prompt, along with instructions to
+// synthesize one natural answer instead of copying/listing the raw chunks.
+// This is where the retrieved course content is actually handed to the LLM.
+// تحوّل هذه الدالة مقاطع RAG المُرجَعة من /api/rag/query إلى كتلة نص تُدرَج
+// داخل الـsystem prompt الخاص بالمعلّم، مع تعليمات بصياغة إجابة واحدة طبيعية
+// بدل نسخ أو سرد المقاطع الخام. هذه هي النقطة التي يُسلَّم فيها محتوى المقرر
+// المُسترجَع فعليًا إلى الـLLM.
+function ragContextClause(ragContext){
+  if(!ragContext || !ragContext.length) return '';
+  const excerpts = ragContext.map((c,i)=>`[${i+1}] ${c.text}`).join('\n\n');
+  return `\n\nمقاطع مرجعية من كتاب المقرر ذات صلة بسؤال الطالب الحالي (هذه مصدر المعلومة فقط وليست نصًا جاهزًا للعرض):\n${excerpts}\n
+طريقة استخدام هذه المقاطع: افهم أولًا سؤال الطالب بالضبط، ثم افهم مضمون المقاطع أعلاه، ثم ألّف من ذلك إجابة واحدة متكاملة بأسلوبك الخاص — مثل شرح مدرّس محترف يجيب بطلاقة، لا مثل محرك بحث يعرض نتائج. ممنوع نسخ جمل المقاطع كما هي، وممنوع تعداد "المقطع 1 يقول كذا، المقطع 2 يقول كذا". لا تذكر للطالب أن هناك "مقاطع مسترجعة" أو "سياقًا" من الأساس. إذا كان سؤال الطالب متعلقًا بمحتوى المقرر ولم تجد له إجابة في هذه المقاطع، صرّح بذلك للطالب بدل اختراع معلومة غير موجودة فيها.`;
+}
+
+// Builds the system prompt for the open-concept tutor ("doctor") scenario:
+// defines the 5-phase teaching flow (assessment/explaining/summary/
+// verification/mastered), the required JSON response contract, and — via
+// ragContextClause() — how retrieved course chunks must be used and never
+// exposed to the student as raw JSON/fields.
+// تبني هذه الدالة الـsystem prompt لسيناريو المعلّم الخصوصي المفتوح (doctor):
+// تحدّد المراحل التعليمية الخمس (تقييم/شرح/ملخص/تحقق/إتقان)، وشكل رد الـJSON
+// الإلزامي، وعبر ragContextClause() كيفية استخدام مقاطع RAG المسترجعة دون
+// عرضها للطالب كـJSON أو حقول خام أبدًا.
+function tutorSystemPrompt(ragContext){
   return `أنت "المعلم الخصوصي الذكي" داخل نظام البلاك بورد بمنصة EDU AI. دورك مساعدة طالب جامعي سعودي على فهم مفهوم دراسي يعاني فيه، عبر مسار تعليمي دقيق وممنهج، وليس إعطاء إجابات جاهزة.
+${ragContextClause(ragContext)}
 
 مسارك الإلزامي خطوة بخطوة:
-المرحلة 1: تحديد المستوى (assessment): ابدأ الجلسة فوراً باختبار قصير (سؤالين أو ثلاثة) حول المفهوم الذي طلبه الطالب لتحديد مستواه، دون تقديم أي شرح مسبق.
-المرحلة 2: تقييم وشرح الأخطاء (explaining): حلل إجابات الطالب. 
+المرحلة 1: تحديد المستوى (assessment) أو الشرح المباشر:
+- إذا كانت رسالة الطالب طلب شرح صريح (مثل: اشرح لي، وضّح، عرّفني، فهّمني، ما هو، كيف يعمل) وليست طلبًا لاختبار مستواه: لا تبدأ باختبار تشخيصي؛ انتقل مباشرة لمرحلة الشرح (phase="explaining") واشرح المفهوم مباشرة معتمدًا على السياق المسترجع باتّباع "أسلوب الشرح المطلوب" أدناه، واختم بسؤال تحقق واحد قصير فقط ضمن نفس الشرح (وليس اختبارًا متعدد الأسئلة).
+- في غير ذلك (طلب اختبار مستواه صراحة، أو رسالته مجرد اسم مفهوم دون سياق واضح): ابدأ الجلسة فوراً باختبار قصير (سؤالين أو ثلاثة) حول المفهوم لتحديد مستواه، دون تقديم أي شرح مسبق.
+المرحلة 2: تقييم وشرح الأخطاء (explaining): حلل إجابات الطالب.
 - إذا كانت إجاباته صحيحة بالكامل: أثنِ عليه، وانتقل للمرحلة 4 (التأكيدي).
 - إذا أخطأ: قم بالتركيز على الأسئلة الخاطئة فقط. ابدأ بشرح مفصل ودقيق خطوة بخطوة للجزئية التي لم يفهمها (تفاعل معه ولا تعطه الحل دفعة واحدة).
 المرحلة 3: الملخص (summary): بعد أن يتجاوز مرحلة الشرح وتتأكد من فهمه المبدئي، أعطه ملخصاً قصيراً لأهم نقاط المفهوم.
 المرحلة 4: الاختبار التأكيدي (verification): اطرح سؤالاً جديداً (مختلفاً كلياً عن السابق) للتأكد من فهمه العميق بعد الشرح.
-المرحلة 5: التوجيه النهائي: 
+المرحلة 5: التوجيه النهائي:
 - إذا أخطأ في التأكيدي: عد للمرحلة 2 (explaining) واشرح بأسلوب مبسط ومختلف.
 - إذا أجاب بشكل صحيح: أنهِ الجلسة بنجاح واستخدم (mastered=true).
+
+أسلوب الشرح المطلوب (ينطبق على أي رسالة تشرح فيها المفهوم، وخصوصًا مرحلة explaining):
+- المقاطع المرجعية المسترجعة أعلاه (إن وُجدت) هي مصدر المعلومة فقط، لا نص جاهز تكرره؛ افهمها ثم أعد شرحها بأسلوبك كمعلّم خصوصي، ولا تنسخ صياغة الكتاب حرفيًا.
+- اجعل الشرح موجزًا ومنظمًا لا مطولًا، بهذا الترتيب بالضبط داخل نص "message" (باستخدام أسطر \n جديدة بين الأجزاء، بدون عناوين Markdown مثل # أو **):
+  1) فكرة مبسطة: ابدأ مباشرة بجوهر الفكرة بلغة عربية طبيعية وواضحة، بدون تعريف أكاديمي جامد كأول جملة، مع ذكر المصطلح الإنجليزي بجانب العربي عند الحاجة.
+  2) نقاط أساسية: 2-4 نقاط مرقّمة مختصرة فقط (لا فقرات طويلة)؛ إذا كان المفهوم رياضيًا اجعل النقاط بالترتيب: معنى القانون بالكلام، ثم الرموز، ثم استخدم صيغة رياضية بصيغة LaTeX بين علامتي $...$ للرموز داخل السطر، أو $$...$$ لمعادلة مستقلة بسطر خاص بها (بدون فواصل أسطر داخل نفس صيغة $...$ الواحدة).
+  3) مثال واحد فقط، وفقط عند الحاجة الفعلية لتوضيح الفكرة (لا تُضِف مثالًا إن كانت الفكرة واضحة بدونه).
+  4) سؤال تحقق واحد قصير فقط في آخر الرسالة للتأكد من الفهم.
+- اربط الفكرة بما يعرفه الطالب مسبقًا إن كان ذلك يخدم فهمه، ضمن الإيجاز نفسه.
+- ركّز فقط على النقطة التي سأل عنها الطالب تحديدًا، ولا تُغرقه بمعلومات إضافية لا علاقة لها بسؤاله.
+- إن بدا أن الطالب لم يستوعب بعد، بسّط أكثر واستخدم تشبيهًا (analogy) من حياته اليومية بدل إعادة نفس الشرح كما هو.
+- لا تخترع أي معلومة أو رمز أو قانون غير موجود في المقاطع المسترجعة أعلاه عندما يكون سؤال الطالب متعلقًا مباشرة بمحتوى المقرر؛ إن لم تجد المعلومة في السياق المسترجع، وضّح ذلك للطالب صراحة بدل اختراعها.
+- قيمة "message" يجب أن تكون دائمًا إجابة واحدة طبيعية ومترابطة كما يكتبها أستاذ أكاديمي لطالبه مباشرة، وليست ملاحظات مجزأة أو نسخًا للمقاطع كما هي.
+مثال على الأسلوب المطلوب فقط (وليس نصًا ثابتًا تكرره): بدل تعريف أكاديمي طويل لـPolar Coordinates، ابدأ مثل: "فكرتها ببساطة: بدل ما نحدد مكان النقطة بـ x وy، نحددها بشيئين: كم تبعد عن نقطة الأصل؟ وبأي زاوية؟ وهذولا نسميهم r وθ."
 
 ${langClause()}
 
 مهم جداً جداً: ردك بالكامل يجب أن يكون كائن JSON صالح فقط، بدون أي نص قبله أو بعده وبدون أسوار كود Markdown، بالضبط بهذا الشكل:
 {"message": "نص الرسالة الموجهة للطالب (باللغة الحالية للواجهة)", "phase": "assessment أو explaining أو summary أو verification أو mastered", "step_number": رقم صحيح يمثل المرحلة الحالية من 1 إلى 5, "total_steps_estimate": 5, "concept_title": "اسم مختصر للمفهوم", "mastered": true أو false}
 
+هذا التركيب (phase, step_number, total_steps_estimate, concept_title, mastered) لتتبّع النظام الداخلي فقط؛ الطالب لا يرى إلا محتوى "message"، فلا تذكر أسماء هذه الحقول ولا صيغة الـJSON نفسها داخل نص "message" بأي شكل.
+
 أول رسالة من الطالب ستكون اسم المفهوم. ابدأ مباشرة بطرح اختبار تحديد المستوى.`;
 }
 
-function reviewSystemPrompt(topicsList, courseName){
+// Builds the system prompt for the "review last lecture" (blackboard)
+// scenario: restricts the LLM to the specific topics covered in the last
+// lecture, one point at a time, and — via ragContextClause() — grounds each
+// reminder in the retrieved course chunks for that topic.
+// تبني هذه الدالة الـsystem prompt لسيناريو "مراجعة آخر محاضرة" (البلاك بورد):
+// تُقيّد الـLLM بالنقاط المحدَّدة التي غطّتها المحاضرة الأخيرة فقط، نقطة واحدة
+// بكل مرة، وتُؤسِّس كل تذكير عبر ragContextClause() على مقاطع RAG المسترجعة
+// لتلك النقطة.
+function reviewSystemPrompt(topicsList, courseName, ragContext){
   const list = topicsList.map((tp,i)=>(i+1)+'. '+t(tp)).join('\n');
   return `أنت "مساعد المراجعة" في نظام البلاك بورد بمنصة EDU AI، تراجع مع طالب جامعي سعودي محتوى محاضرة انتهت اليوم في مقرر "${t(courseName)||''}"، ولست تشرح مادة جديدة من الصفر.
 
 المحاضرة التي تراجعها غطّت هذه النقاط بالضبط وبهذا الترتيب:
 ${list}
+${ragContextClause(ragContext)}
 
 منهجك الإلزامي:
 - راجع نقطة واحدة فقط في كل رسالة، بشكل مختصر (تذكير سريع لا شرح من الصفر)، ثم اطرح سؤال استرجاع سريع للتأكد إن الطالب يتذكرها من المحاضرة.
 - إذا أجاب صح انتقل للنقطة التالية بالترتيب (step_number +1). إذا أخطأ أو تردد، ذكّره بالنقطة بجملة أو جملتين إضافيتين ثم أعد السؤال بصياغة أبسط، ولا تعتبرها شرحًا جديدًا بل تذكيرًا، واستخدم phase="explaining" مع إبقاء نفس step_number.
 - لا تخرج عن النقاط المذكورة أعلاه، ولا تضف مواضيع لم تُغطَّ بالمحاضرة.
+- إن احتجت لكتابة رمز أو معادلة رياضية، استخدم صيغة LaTeX بين $...$ للرموز داخل السطر أو $$...$$ لمعادلة مستقلة، بدون فواصل أسطر داخل نفس الصيغة الواحدة.
 - عند تغطية كل النقاط بنجاح، اجعل mastered=true واكتب رسالة ختامية قصيرة تلخص أهم نقطتين من المحاضرة وتهنئه بإنهاء المراجعة، واستخدم phase="mastered".
 
 ${langClause()}
@@ -945,7 +1015,7 @@ function examPrompt(mode, topicLabel, level, questionRows, conceptRows, courseNa
 
 الموضوع المطلوب توليد أسئلة الاختبار منه تحديدًا: "${t(topicLabel)}"
 
-صمم 4 أسئلة اختبار ${levelClause} حول هذا الموضوع تحديدًا فقط، ولا تخرج عنه. اكتب بعد كل سؤال الإجابة النموذجية بين قوسين. اكتب بدون Markdown، مرقّمة بالأرقام العربية (١، ٢، ٣، ٤).${langClause()}${langInstruction()}`;
+صمم 4 أسئلة اختبار ${levelClause} حول هذا الموضوع تحديدًا فقط، ولا تخرج عنه. رقّم الأسئلة الأربعة تسلسليًا وبالترتيب الصحيح من ١ إلى ٤ بالأرقام العربية الشرقية حصرًا (١، ٢، ٣، ٤) دون تكرار أو تخطي أي رقم. اكتب كل سؤال في سطر مستقل، واكتب بعده مباشرة الإجابة النموذجية بوضوح بين قوسين، مع مسافة فاصلة بين كل سؤال والذي يليه بحيث يكون التنسيق النهائي منمّقًا ومرتبًا وسهل القراءة. اكتب بدون Markdown ولا رموز زخرفية.${langClause()}${langInstruction()}`;
   }
   return `أنت أستاذ جامعي تدرّس مقرر "${t(courseName)||''}" وتصمم أسئلة اختبار بناءً على بيانات فعلية من مساعد ذكاء اصطناعي تعليمي، توضّح أين يتعثر طلاب شعبتك تحديدًا.
 
@@ -955,7 +1025,7 @@ ${qList}
 المفاهيم التي احتاجت شرحًا إضافيًا حتى أُتقنت:
 ${cList}
 
-صمم 4 أسئلة اختبار ${levelClause} بناءً على هذه الفجوات المعرفية، لتقييم مدى تجاوز الطلاب لهذه الصعوبات الفعلية. اكتب بعد كل سؤال الإجابة النموذجية بين قوسين. اكتب بدون Markdown، مرقّمة بالأرقام العربية (١، ٢، ٣، ٤).${langClause()}${langInstruction()}`;
+صمم 4 أسئلة اختبار ${levelClause} بناءً على هذه الفجوات المعرفية، لتقييم مدى تجاوز الطلاب لهذه الصعوبات الفعلية. رقّم الأسئلة الأربعة تسلسليًا وبالترتيب الصحيح من ١ إلى ٤ بالأرقام العربية الشرقية حصرًا (١، ٢، ٣، ٤) دون تكرار أو تخطي أي رقم. اكتب كل سؤال في سطر مستقل، واكتب بعده مباشرة الإجابة النموذجية بوضوح بين قوسين، مع مسافة فاصلة بين كل سؤال والذي يليه بحيث يكون التنسيق النهائي منمّقًا ومرتبًا وسهل القراءة. اكتب بدون Markdown ولا رموز زخرفية.${langClause()}${langInstruction()}`;
 }
 function examChatSystemPrompt(examText, courseName){
   return `أنت مساعد تصميم اختبارات يساعد أستاذًا جامعيًا يدرّس مقرر "${t(courseName)||''}" على مراجعة وتحسين مجموعة أسئلة اختبار قبل اعتمادها رسميًا.
@@ -990,6 +1060,16 @@ async function ensureFreshReply(key, text, refreshFn){
   return t('عذرًا، يبدو أنني كرّرت نفس الرد. سأحاول صياغة إجابة جديدة.');
 }
 
+// Main frontend↔backend LLM call: sends the system prompt (already containing
+// any RAG context) and conversation history to POST /api/chat, retries on
+// timeouts/network/server errors, and falls back to a scripted offline reply
+// if the backend stays unreachable. This is the only place the frontend
+// talks to the LLM.
+// استدعاء الـLLM الرئيسي بين الواجهة الأمامية والباك إند: يرسل الـsystem
+// prompt (والذي يحوي مسبقًا أي سياق RAG) وتاريخ المحادثة إلى POST /api/chat،
+// يعيد المحاولة عند انتهاء المهلة/أخطاء الشبكة/الخادم، ويستخدم ردًا احتياطيًا
+// جاهزًا إن ظل الباك إند غير متاح. هذه هي النقطة الوحيدة التي تتحدث فيها
+// الواجهة الأمامية مع الـLLM.
 async function callClaude(systemPrompt, history, meta){
   const MAX_ATTEMPTS = 3;
   const body = {
@@ -1004,28 +1084,33 @@ async function callClaude(systemPrompt, history, meta){
   let lastKind = 'network';
   for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
     if(attempt > 1) await sleep(1200 * (attempt - 1));
+    console.log(`[chat] attempt ${attempt}/${MAX_ATTEMPTS} -> POST http://127.0.0.1:5000/api/chat`, { model: body.model, systemLen: (systemPrompt||'').length }); // TEMP DEBUG LOG
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 30000);
     let res;
     try{
-      res = await fetch("http://localhost:5000/api/chat", {
+      res = await fetch("http://127.0.0.1:5000/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: ctrl.signal,
         body: JSON.stringify(body)
       });
     }catch(e){
+      console.log('[chat] fetch threw:', e && e.name, e && e.message); // TEMP DEBUG LOG
       if(e && e.name === 'AbortError') lastKind = 'timeout';
       else lastKind = 'network';
       continue;
     }finally{
       clearTimeout(timer);
     }
+    console.log('[chat] response status:', res.status); // TEMP DEBUG LOG
     if(res.status === 429 || res.status >= 500){
       lastKind = 'server';
       continue;
     }
     if(!res.ok){
+      const errBody = await res.text().catch(() => '');
+      console.log('[chat] non-ok response body:', errBody.slice(0, 300)); // TEMP DEBUG LOG
       state.offlineMode = true;
       return translateServerError(res.status);
     }
@@ -1034,12 +1119,54 @@ async function callClaude(systemPrompt, history, meta){
       state.offlineMode = false;
       return data.text.trim();
     }
+    if(data && typeof data.message === 'string'){
+      // backend already parsed the model's JSON contract (phase/step_number/...)
+      // into a natural object instead of a JSON string wrapped in "text";
+      // re-stringify so advanceTutor()'s existing JSON.parse(...) keeps working unchanged.
+      state.offlineMode = false;
+      return JSON.stringify(data);
+    }
     lastKind = 'parse';
   }
+  console.log('[chat] giving up, falling back to offline reply. lastKind =', lastKind); // TEMP DEBUG LOG
   state.offlineMode = true;
   if(lastKind === 'timeout') return t('انتهت مهلة الاتصال بالخادم. حاول مرة أخرى.');
   if(lastKind === 'server') return t('نواجه ضغطاً في الخادم حالياً، يرجى المحاولة بعد قليل.');
   return offlineReply(meta || {}, history);
+}
+
+// Calls the RAG retrieval endpoint (POST /api/rag/query) to fetch the chunks
+// most relevant to the student's question. Fails silently (returns an empty
+// list) on any network/server error so a RAG outage never blocks the chat —
+// the tutor simply answers without grounding in that case.
+// تستدعي هذه الدالة نقطة استرجاع RAG (POST /api/rag/query) لجلب أكثر المقاطع
+// ارتباطًا بسؤال الطالب. تفشل بصمت (تُعيد قائمة فارغة) عند أي خطأ شبكة/خادم
+// حتى لا يتوقف الشات بسبب تعطّل RAG — يجيب المعلّم حينها بدون تأصيل بالمصدر.
+async function fetchRagContext(question, topK){
+  console.log('[RAG] fetchRagContext -> POST http://127.0.0.1:5000/api/rag/query', { question, top_k: topK || 4 }); // TEMP DEBUG LOG
+  try{
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    let res;
+    try{
+      res = await fetch("http://127.0.0.1:5000/api/rag/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: ctrl.signal,
+        body: JSON.stringify({ question, top_k: topK || 4 })
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+    console.log('[RAG] response status:', res.status); // TEMP DEBUG LOG
+    if(!res.ok) return [];
+    const data = await res.json().catch(() => null);
+    console.log('[RAG] chunks received:', data && data.chunks ? data.chunks.length : 0, data); // TEMP DEBUG LOG
+    return (data && Array.isArray(data.chunks)) ? data.chunks : [];
+  }catch(e){
+    console.log('[RAG] fetch failed:', e && e.message); // TEMP DEBUG LOG
+    return [];
+  }
 }
 
 function networkErrorMessage(code){
@@ -1049,11 +1176,23 @@ function networkErrorMessage(code){
 }
 
 /* ---------------- Multi-Agent Router ---------------- */
+// The multi-agent registry: each entry pairs a system-prompt builder with the
+// scenario it belongs to (tutor vs academic). doctor/blackboard both take the
+// RAG context and are grounded in retrieved course chunks; academic never is.
+// سجل الوكلاء المتعددين: كل عنصر يربط دالة بناء الـsystem prompt بالسيناريو
+// الذي تنتمي له (tutor أو academic). doctor وblackboard كلاهما يستقبلان سياق
+// RAG ويُؤصَّلان بمقاطع المقرر المسترجعة؛ أما academic فلا يستخدم RAG أبدًا.
 const AGENTS = {
-  doctor:     { key:'doctor',     scenario:'tutor',    label: () => t('معلم البلاك بورد'),   prompt: () => tutorSystemPrompt() },
+  doctor:     { key:'doctor',     scenario:'tutor',    label: () => t('معلم البلاك بورد'),   prompt: (ragContext) => tutorSystemPrompt(ragContext) },
   academic:   { key:'academic',   scenario:'academic', label: () => t('المنظومة الأكاديمية'), prompt: () => academicSystemPrompt() },
-  blackboard: { key:'blackboard', scenario:'tutor',    label: () => t('نظام البلاك بورد'),    prompt: () => { const sec = getSection(state.profile.sectionId); return reviewSystemPrompt(state.tutor.reviewTopics || [], sec ? sec.course : ''); } }
+  blackboard: { key:'blackboard', scenario:'tutor',    label: () => t('نظام البلاك بورد'),    prompt: (ragContext) => { const sec = getSection(state.profile.sectionId); return reviewSystemPrompt(state.tutor.reviewTopics || [], sec ? sec.course : '', ragContext); } }
 };
+// Picks which agent should answer the current chat key: the academic tab
+// always uses AGENTS.academic; the Blackboard tab picks doctor or blackboard
+// depending on whether the student is in free-concept or lecture-review mode.
+// تختار هذه الدالة أي وكيل يجب أن يجيب على مفتاح الدردشة الحالي: تبويب
+// الأكاديمي يستخدم AGENTS.academic دائمًا؛ تبويب البلاك بورد يختار بين
+// doctor أو blackboard حسب كون الطالب في وضع المفهوم الحر أو مراجعة المحاضرة.
 function resolveAgent(chatKey){
   if(chatKey === 'academic') return AGENTS.academic;
   return state.tutor.mode === 'review' ? AGENTS.blackboard : AGENTS.doctor;
@@ -1373,6 +1512,28 @@ function render(){
   else if(state.view === 'faculty') app.innerHTML = renderFaculty();
 
   attachHandlers();
+  renderMath(app);
+}
+
+// Typesets any $...$ / $$...$$ LaTeX math inside the given DOM container
+// using KaTeX, so the LLM's final answer shows real math notation instead of
+// raw LaTeX text. Called after every render() so new chat bubbles get this too.
+// تُنسّق هذه الدالة أي صيغ رياضية بصيغة LaTeX ($...$ أو $$...$$) داخل عنصر DOM
+// المُعطى باستخدام KaTeX، حتى تظهر إجابة الـLLM النهائية برموز رياضية حقيقية
+// بدل نص LaTeX خام. تُستدعى بعد كل render() حتى تشمل فقاعات الدردشة الجديدة أيضًا.
+function renderMath(container){
+  if(typeof renderMathInElement !== 'function') return;
+  try{
+    renderMathInElement(container, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '\\[', right: '\\]', display: true },
+        { left: '$', right: '$', display: false },
+        { left: '\\(', right: '\\)', display: false }
+      ],
+      throwOnError: false
+    });
+  }catch(e){}
 }
 
 function renderLanding(){
@@ -1587,7 +1748,8 @@ function renderChat(key){
   const bubbles = data.messages.map(m=>{
     if(m.role==='system') return `<div class="bubble system">${nl2br(m.text)}</div>`;
     if(m.role==='policy') return `<div class="bubble policy"><span class="p-tag">${t('🛡 P-NODE — سياسة حماية البيانات')} (${t('سياسة حماية البيانات الشخصية (PDPL)')})</span>${nl2br(m.text)}<div style="margin-top:8px;font-size:11px;line-height:1.6;color:#6e2c1c;background:#FBD9CE;border:1px dashed var(--brick);border-radius:8px;padding:6px 10px;"><strong>${t('أثر السياسة:')}</strong> ${t('تم منع الإجابة تلقائيًا لأن الطلب يخالف أحكام توطين البيانات والموافقة في نظام حماية البيانات الشخصية (PDPL).')}</div></div>`;
-    return `<div class="bubble ${m.role}">${nl2br(m.text)}</div>`;
+    const sourceLine = (m.role==='ai' && m.sourceLine) ? `<div class="msg-source">${escapeHtml(m.sourceLine)}</div>` : '';
+    return `<div class="bubble ${m.role}">${nl2br(m.text)}${sourceLine}</div>`;
   }).join('');
   return `
   <div class="chat-shell">
@@ -1758,15 +1920,6 @@ function renderFaculty(){
           ${topics.map((tp,i)=>`<option value="${i}" ${String(i)===String(f.examTopicIdx)?'selected':''}>${escapeHtml(t(tp))}</option>`).join('')}
         </select>
       </div>` : ''}
-      <div style="flex:1;min-width:200px;">
-        <label style="display:block;font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:6px;">${t('مستوى صعوبة الأسئلة')}</label>
-        <select id="fExamLevel" onchange="state.faculty.examLevel=this.value">
-          <option value="easy" ${f.examLevel==='easy'?'selected':''}>${t('سهل')}</option>
-          <option value="medium" ${f.examLevel==='medium'?'selected':''}>${t('متوسط')}</option>
-          <option value="hard" ${f.examLevel==='hard'?'selected':''}>${t('صعب')}</option>
-          <option value="mixed" ${f.examLevel==='mixed'?'selected':''}>${t('متنوع (يغطي كل المستويات)')}</option>
-        </select>
-      </div>
     </div>
     <button class="quiz-btn" onclick="generateExam()" ${(f.examLoading || (f.examMode==='gaps' && !questionRows.length && !conceptRows.length) || (f.examMode==='topic' && !topics.length))?'disabled':''}>
       ${f.examLoading ? t('جاري التوليد...') : t('ولّد أسئلة الاختبار')}
@@ -1970,6 +2123,12 @@ function scrollLog(key){
   if(el) el.scrollTop = el.scrollHeight;
 }
 
+// Handles a student/faculty message submit: logs the question for the
+// faculty dashboard's mock analytics, then routes to the academic prompt
+// flow directly or to advanceTutor() (RAG + LLM) for the Blackboard tabs.
+// تعالج هذه الدالة إرسال رسالة الطالب/الدكتور: تسجّل السؤال لإحصاءات لوحة
+// الدكتور الوهمية، ثم توجّهه إما مباشرة لمسار الأكاديمي أو إلى advanceTutor()
+// (RAG + LLM) لتبويبات البلاك بورد.
 async function sendMessage(key){
   const input = document.getElementById('input-'+key);
   const text = input.value.trim();
@@ -2015,6 +2174,11 @@ function quickStart(topic){
   document.getElementById('starterInput').value = topic;
   startTutor();
 }
+// Starts a free-concept tutoring session (student typed a topic they want
+// help with) — initializes the tutor state in "open" mode and kicks off the
+// first RAG + LLM exchange via advanceTutor().
+// تبدأ هذه الدالة جلسة تعليم بمفهوم حر (كتب الطالب موضوعًا يريد مساعدة فيه) —
+// تُهيّئ حالة المعلّم بوضع "open" وتُطلق أول تبادل RAG + LLM عبر advanceTutor().
 async function startTutor(){
   const input = document.getElementById('starterInput');
   const topic = input.value.trim();
@@ -2041,6 +2205,12 @@ async function startTutor(){
   render(); scrollLog('tutor');
 }
 
+// Starts a "review last lecture" session — initializes the tutor state in
+// "review" mode with the exact topic list from the last ended lecture, then
+// kicks off the first RAG + LLM exchange via advanceTutor().
+// تبدأ هذه الدالة جلسة "مراجعة آخر محاضرة" — تُهيّئ حالة المعلّم بوضع
+// "review" بقائمة النقاط الدقيقة من آخر محاضرة انتهت، ثم تُطلق أول تبادل
+// RAG + LLM عبر advanceTutor().
 async function startReview(){
   const sec = getSection(state.profile.sectionId);
   const lec = state.lastEndedLectureForStudent;
@@ -2067,6 +2237,17 @@ async function startReview(){
   render(); scrollLog('tutor');
 }
 
+// The central RAG + LLM orchestration function for the tutor scenarios: it
+// (1) fetches relevant chunks via fetchRagContext(), (2) builds the source
+// citation line from the top chunk, (3) builds the system prompt through the
+// resolved agent, (4) calls the LLM via callClaude(), and (5) parses the
+// JSON reply to advance the phase/step state — this single function ties the
+// whole RAG pipeline to the chat UI.
+// دالة التنسيق المركزية بين RAG والـLLM لسيناريوهات المعلّم: (1) تجلب المقاطع
+// ذات الصلة عبر fetchRagContext()، (2) تبني سطر ذكر المصدر من أعلى مقطع،
+// (3) تبني الـsystem prompt عبر الوكيل المُحدَّد، (4) تستدعي الـLLM عبر
+// callClaude()، (5) تُحلّل رد الـJSON لتقديم حالة المرحلة/الخطوة — هذه الدالة
+// الواحدة تربط مسار RAG بالكامل بواجهة الدردشة.
 async function advanceTutor(userText){
   const t = state.tutor;
   const history = t.messages.filter(m=>m.role==='user'||m.role==='ai').map(m=>({
@@ -2074,7 +2255,13 @@ async function advanceTutor(userText){
     content: m.role==='ai' ? m.rawJson || m.text : m.text
   }));
   const agent = resolveAgent('tutor');
-  const systemPrompt = agent.prompt() + langInstruction();
+  const ragContext = await fetchRagContext(t.concept ? `${t.concept} — ${userText}` : userText);
+  let sourceLine = '';
+  if(ragContext && ragContext.length && ragContext[0].source){
+    const top = ragContext[0];
+    sourceLine = (top.page != null) ? tpl('المصدر: {file} — الصفحة {page}', { file: top.source, page: top.page }) : top.source;
+  }
+  const systemPrompt = agent.prompt(ragContext) + langInstruction();
   const raw = await callClaude(systemPrompt, history, { scenario:'tutor', mode:t.mode, phase:t.phase, step:t.step, total:t.total, concept:t.concept });
   let parsed;
   try{
@@ -2092,7 +2279,7 @@ async function advanceTutor(userText){
       }catch(e2){ return retry; }
     });
   }
-  t.messages.push({role:'ai', text: parsed.message || '...', rawJson: JSON.stringify(parsed)});
+  t.messages.push({role:'ai', text: parsed.message || '...', rawJson: JSON.stringify(parsed), sourceLine});
   const PHASES = ['assessment','explaining','summary','verification','mastered'];
   t.phase = PHASES.includes(parsed.phase) ? parsed.phase : t.phase;
   t.step = Math.max(t.step, parsed.step_number || t.step);

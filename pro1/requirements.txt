@@ -1,0 +1,8 @@
+# Project Dependencies | مكتبات المشروع
+# يحتوي على المكتبات المطلوبة لتشغيل الباك إند ونظام RAG.
+flask
+flask-cors
+requests
+pymupdf
+sentence-transformers
+easyocr
