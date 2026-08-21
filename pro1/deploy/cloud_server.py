@@ -15,10 +15,26 @@
 
 import json
 import os
+import sys
 import time
 
 import requests
 from flask import Flask, jsonify, request, send_from_directory
+
+
+def log(msg):
+    """PythonAnywhere's WSGI stdout uses a latin-1 codec, so printing Arabic
+    text (e.g. a student question) raises UnicodeEncodeError and kills the
+    request with a 500. Log defensively: try a normal print first, then fall
+    back to an ascii-escaped version, and never let logging break a request."""
+    try:
+        print(msg)
+    except Exception:
+        try:
+            print(str(msg).encode("ascii", "backslashreplace").decode("ascii"))
+        except Exception:
+            pass
+
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 PRO1_HTML = os.path.join(APP_DIR, "..", "pro1.html")
@@ -38,12 +54,12 @@ MAX_TOKENS = 1000
 MAX_ATTEMPTS = 3
 BASE_DELAY = 1.2
 
-print("[cloud] loading vector store ...")
+log("[cloud] loading vector store ...")
 _t0 = time.time()
 with open(VECTORS_PATH, "r", encoding="utf-8") as _f:
     VECTORS = [json.loads(_line) for _line in _f if _line.strip()]
-print(f"[cloud] loaded {len(VECTORS)} chunk(s) in {time.time() - _t0:.2f}s")
-print(f"[cloud] GOOGLE_API_KEY={'set' if GOOGLE_API_KEY else 'MISSING'}")
+log(f"[cloud] loaded {len(VECTORS)} chunk(s) in {time.time() - _t0:.2f}s")
+log(f"[cloud] GOOGLE_API_KEY={'set' if GOOGLE_API_KEY else 'MISSING'}")
 
 
 app = Flask(__name__)
@@ -199,14 +215,14 @@ def rag_query():
     t_start = time.time()
     body = request.get_json(silent=True) or {}
     question = (body.get("question") or "").strip()
-    print(f"[rag] question={question!r}")
+    log(f"[rag] question={question!r}")
     if not question:
         return jsonify({"chunks": []})
     top_k = int(body.get("top_k", 4))
     try:
         qvec = embed_query(question)
     except Exception as e:
-        print(f"[rag] embedding failed: {e}")
+        log(f"[rag] embedding failed: {e}")
         return jsonify({"error": "rag_error", "detail": str(e)}), 502
 
     scored = [
@@ -221,8 +237,8 @@ def rag_query():
     ]
     scored.sort(key=lambda x: x["score"], reverse=True)
     chunks = scored[:top_k]
-    print(f"[rag] returned {len(chunks)} chunk(s), top score={chunks[0]['score']:.3f}" if chunks else "[rag] empty store")
-    print(f"[rag] total request time: {(time.time() - t_start) * 1000:.0f}ms")
+    log(f"[rag] returned {len(chunks)} chunk(s), top score={chunks[0]['score']:.3f}" if chunks else "[rag] empty store")
+    log(f"[rag] total request time: {(time.time() - t_start) * 1000:.0f}ms")
     return jsonify({"chunks": chunks})
 
 
@@ -231,7 +247,7 @@ def chat():
     t_start = time.time()
     body = request.get_json(silent=True) or {}
     model, payload, provider = build_payload(body)
-    print(f"[chat] provider={provider} model={model} messages={len(body.get('messages') or [])}")
+    log(f"[chat] provider={provider} model={model} messages={len(body.get('messages') or [])}")
 
     last_status = None
     last_detail = ""
@@ -240,15 +256,18 @@ def chat():
             time.sleep(BASE_DELAY * (attempt - 1))
         try:
             resp = do_request(provider, model, payload)
-        except requests.RequestException as e:
+            data = resp.json()
+        except Exception as e:
+            # Broad catch on purpose: under WSGI any unhandled exception becomes
+            # an opaque HTML 500 — better to retry and return structured JSON.
             last_status = 502
             last_detail = str(e)
-            print(f"[chat] attempt {attempt}: exception: {e}")
+            log(f"[chat] attempt {attempt}: exception: {e}")
             continue
         if resp.status_code == 200:
-            text = extract_text(provider, resp.json())
+            text = extract_text(provider, data)
             flattened = _try_flatten_json_message(text)
-            print(f"[chat] ok in {(time.time() - t_start) * 1000:.0f}ms")
+            log(f"[chat] ok in {(time.time() - t_start) * 1000:.0f}ms")
             if flattened is not None:
                 return jsonify(flattened)
             return jsonify({"text": text})
@@ -256,10 +275,10 @@ def chat():
             last_status = resp.status_code
             last_detail = resp.text[:300]
             continue
-        print(f"[chat] non-retryable error {resp.status_code}: {resp.text[:300]}")
+        log(f"[chat] non-retryable error {resp.status_code}: {resp.text[:300]}")
         return jsonify({"error": "provider_error", "status": resp.status_code, "detail": resp.text[:500]}), resp.status_code
 
-    print(f"[chat] giving up after {MAX_ATTEMPTS} attempts: {last_status}")
+    log(f"[chat] giving up after {MAX_ATTEMPTS} attempts: {last_status}")
     return jsonify({"error": "upstream_error", "status": last_status, "detail": last_detail}), 502
 
 
