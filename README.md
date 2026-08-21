@@ -1,19 +1,31 @@
-# EDU AI — Blackboard Student Assistant with RAG
+﻿# EDU AI — Blackboard Student Assistant with RAG
 
-EDU AI is a prototype educational assistant that pairs a Blackboard-style student interface with a locally-run Retrieval-Augmented Generation (RAG) pipeline. Student questions about indexed course material are grounded in the actual course PDF content before an LLM generates the final, natural-language answer shown in the chat.
+EDU AI is a prototype educational assistant that pairs a Blackboard-style student interface with a Retrieval-Augmented Generation (RAG) pipeline. Student questions about indexed course material are grounded in the actual course PDF content before an LLM generates the final, natural-language answer shown in the chat.
+
+**Live demo (cloud edition):** https://dawoods1.pythonanywhere.com — no installation needed.
 
 ## Project Structure
 
 | File | Role |
 |---|---|
 | `pro1/pro1.html` | Student-facing chat interface (and faculty dashboard) |
-| `pro1/proxy_server.py` | Backend API — routes requests between the frontend, the RAG engine, and the LLM |
+| `pro1/proxy_server.py` | Backend API (local edition) — routes requests between the frontend, the RAG engine, and the LLM |
 | `pro1/rag/ingest.py` | Offline pipeline that processes course PDFs into the vector store |
 | `pro1/rag/ocr.py` | Text extraction / OCR for scanned PDF pages |
 | `pro1/rag/store.py` | Embeddings, vector store, and similarity search |
 | `pro1/requirements.txt` | Python dependencies for the backend and RAG system |
+| `pro1/deploy/cloud_server.py` | Backend API (cloud edition) — same API contract, zero local ML dependencies, fits free hosting tiers |
+| `pro1/deploy/vectors_gemini.jsonl` | Vector store pre-embedded with Gemini embeddings for the cloud edition |
+| `pro1/deploy/reindex_gemini.py` | One-time script that rebuilds the vector store with Gemini embeddings |
+| `pro1/deploy/DEPLOY-STEPS.md` | Step-by-step deployment guide (PythonAnywhere) |
 
 ## Running the Project
+
+### Option A — Live cloud demo
+
+Open **https://dawoods1.pythonanywhere.com** in any browser. The frontend and the slim cloud backend are served from the same origin; no setup, key, or installation is required for reviewers.
+
+### Option B — Run locally (full local-RAG edition)
 
 ```bash
 cd pro1
@@ -23,6 +35,8 @@ python3 proxy_server.py
 ```
 
 Then open `http://127.0.0.1:5000/` in a browser. To index a course chapter PDF (or add a new one later), place it in `pro1/rag/knowledge_base/` and run `python3 rag/ingest.py` — already-indexed files are skipped automatically, so new chapters can be added incrementally without rebuilding the whole index.
+
+The frontend (`pro1.html`) auto-detects its environment: opened locally it targets `http://127.0.0.1:5000`, and when served by the cloud backend it uses the same origin — the exact same file works in both editions without edits.
 
 ---
 
@@ -50,7 +64,7 @@ flowchart LR
 
 | Stage | File | Notes |
 |---|---|---|
-| Course PDF | `rag/knowledge_base/*.pdf` | Source course material (not tracked as code) |
+| Course PDF | `rag/knowledge_base/*.pdf` | Source course material (the indexed sample chapter is included in the repository) |
 | Text Extraction / OCR | `rag/ocr.py` | Extracts text from scanned/image-only pages using local OCR (EasyOCR); `rag/ingest.py` uses native PDF text first and only falls back to OCR when a page has no embedded text layer |
 | Chunking | `rag/store.py` (`chunk_text`) | Splits extracted text into overlapping, paragraph-aware chunks |
 | Embeddings | `rag/store.py` (`embed_text`) | Local sentence-transformers model — no external embedding API |
@@ -98,6 +112,7 @@ This section provides a **conceptual mapping** of the EDU AI architecture to the
 
 ## Notes for Reviewers
 
-- All retrieval (OCR, chunking, embeddings, vector search) runs locally with open-source components; only final answer generation calls an external LLM API.
-- The vector store and embedding model are loaded once at server startup and kept in memory, not reloaded per request.
+- Two backend editions share the same API contract: the **local edition** (`proxy_server.py`) runs retrieval fully locally (local embedding model for both ingestion and queries), while the **cloud edition** (`deploy/cloud_server.py`) uses the Gemini Embedding API to embed incoming questions against a pre-computed Gemini-embedded store (`deploy/vectors_gemini.jsonl`) — chosen so the deployed service fits free hosting memory limits without any local ML libraries.
+- All chunking, OCR, and ingestion always run locally with open-source components; only query/answer generation calls an external LLM API.
+- The vector store is loaded once at server startup and kept in memory, not reloaded per request.
 - The frontend never displays raw JSON, retrieval scores, or internal pipeline fields — only the final synthesized answer and a short source citation.
