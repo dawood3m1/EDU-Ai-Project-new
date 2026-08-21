@@ -1070,6 +1070,16 @@ async function ensureFreshReply(key, text, refreshFn){
 // يعيد المحاولة عند انتهاء المهلة/أخطاء الشبكة/الخادم، ويستخدم ردًا احتياطيًا
 // جاهزًا إن ظل الباك إند غير متاح. هذه هي النقطة الوحيدة التي تتحدث فيها
 // الواجهة الأمامية مع الـLLM.
+// Resolves the backend base URL automatically: when the page is opened
+// locally (file:// or localhost) it targets the local proxy on port 5000,
+// and when it is served by the cloud server it uses the same origin, so the
+// exact same file works in both environments without any edits.
+// تحدد هذه الثابتة عنوان الباك إند تلقائيًا: عند فتح الصفحة محليًا
+// (file:// أو localhost) توجّه الطلبات إلى الوكيل المحلي على المنفذ 5000،
+// وعندما تُقدَّم من السيرفر السحابي تستخدم نفس النطاق — فيعمل الملف نفسه
+// في البيئتين دون أي تعديل.
+const API_BASE = (location.protocol === "file:" || location.hostname === "127.0.0.1" || location.hostname === "localhost") ? "http://127.0.0.1:5000" : "";
+
 async function callClaude(systemPrompt, history, meta){
   const MAX_ATTEMPTS = 3;
   const body = {
@@ -1084,12 +1094,12 @@ async function callClaude(systemPrompt, history, meta){
   let lastKind = 'network';
   for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
     if(attempt > 1) await sleep(1200 * (attempt - 1));
-    console.log(`[chat] attempt ${attempt}/${MAX_ATTEMPTS} -> POST http://127.0.0.1:5000/api/chat`, { model: body.model, systemLen: (systemPrompt||'').length }); // TEMP DEBUG LOG
+    console.log(`[chat] attempt ${attempt}/${MAX_ATTEMPTS} -> POST ${API_BASE}/api/chat`, { model: body.model, systemLen: (systemPrompt||'').length }); // TEMP DEBUG LOG
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 30000);
     let res;
     try{
-      res = await fetch("http://127.0.0.1:5000/api/chat", {
+      res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: ctrl.signal,
@@ -1143,13 +1153,13 @@ async function callClaude(systemPrompt, history, meta){
 // ارتباطًا بسؤال الطالب. تفشل بصمت (تُعيد قائمة فارغة) عند أي خطأ شبكة/خادم
 // حتى لا يتوقف الشات بسبب تعطّل RAG — يجيب المعلّم حينها بدون تأصيل بالمصدر.
 async function fetchRagContext(question, topK){
-  console.log('[RAG] fetchRagContext -> POST http://127.0.0.1:5000/api/rag/query', { question, top_k: topK || 4 }); // TEMP DEBUG LOG
+  console.log('[RAG] fetchRagContext -> POST ' + API_BASE + '/api/rag/query', { question, top_k: topK || 4 }); // TEMP DEBUG LOG
   try{
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);
     let res;
     try{
-      res = await fetch("http://127.0.0.1:5000/api/rag/query", {
+      res = await fetch(`${API_BASE}/api/rag/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: ctrl.signal,
