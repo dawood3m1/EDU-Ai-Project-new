@@ -50,9 +50,10 @@ GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models/{model}:g
 ANTHROPIC_VERSION = "2023-06-01"
 
 DEFAULT_MODEL = "gemini-flash-latest"
+FALLBACK_MODEL = "gemini-flash-lite-latest"  # higher free-tier quota; used when the primary model is rate-limited
 MAX_TOKENS = 1000
 MAX_ATTEMPTS = 3
-BASE_DELAY = 1.2
+BASE_DELAY = 0.8
 
 log("[cloud] loading vector store ...")
 _t0 = time.time()
@@ -277,6 +278,24 @@ def chat():
             continue
         log(f"[chat] non-retryable error {resp.status_code}: {resp.text[:300]}")
         return jsonify({"error": "provider_error", "status": resp.status_code, "detail": resp.text[:500]}), resp.status_code
+
+    # Free-tier rate limits (429) can exhaust the primary model when several
+    # students ask questions at once. Before giving up, try the higher-quota
+    # flash-lite model once — this keeps the demo working under load.
+    if is_gemini_model(model) and "lite" not in model.lower():
+        try:
+            resp = do_request("gemini", FALLBACK_MODEL, payload)
+            data = resp.json()
+            if resp.status_code == 200:
+                text = extract_text("gemini", data)
+                flattened = _try_flatten_json_message(text)
+                log(f"[chat] fallback model {FALLBACK_MODEL} succeeded")
+                if flattened is not None:
+                    return jsonify(flattened)
+                return jsonify({"text": text})
+            log(f"[chat] fallback model failed: {resp.status_code}: {resp.text[:200]}")
+        except Exception as e:
+            log(f"[chat] fallback attempt exception: {e}")
 
     log(f"[chat] giving up after {MAX_ATTEMPTS} attempts: {last_status}")
     return jsonify({"error": "upstream_error", "status": last_status, "detail": last_detail}), 502
