@@ -51,6 +51,8 @@ ANTHROPIC_VERSION = "2023-06-01"
 
 DEFAULT_MODEL = "gemini-flash-latest"
 FALLBACK_MODEL = "gemini-flash-lite-latest"  # higher free-tier quota; used when the primary model is rate-limited
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"       # final safety net: generous free quota from groq.com (no card needed)
 MAX_TOKENS = 1000
 MAX_ATTEMPTS = 3
 BASE_DELAY = 0.8
@@ -277,7 +279,11 @@ def chat():
             last_detail = resp.text[:300]
             continue
         log(f"[chat] non-retryable error {resp.status_code}: {resp.text[:300]}")
-        return jsonify({"error": "provider_error", "status": resp.status_code, "detail": resp.text[:500]}), resp.status_code
+        # Don't hard-return: fall through to the fallback chain below so an
+        # exhausted/invalid Gemini setup can still be rescued by another model.
+        last_status = resp.status_code
+        last_detail = resp.text[:500]
+        break
 
     # Free-tier rate limits (429) can exhaust the primary model when several
     # students ask questions at once. Before giving up, try the higher-quota
@@ -296,6 +302,38 @@ def chat():
             log(f"[chat] fallback model failed: {resp.status_code}: {resp.text[:200]}")
         except Exception as e:
             log(f"[chat] fallback attempt exception: {e}")
+
+    # Final safety net: Groq's free tier allows far more daily requests than
+    # Gemini's. If every Gemini route is exhausted (quota, outage, or key
+    # issue), route the request to Llama 3.3 70B so the demo keeps working
+    # even on heavy judging days.
+    groq_key = os.environ.get("GROQ_API_KEY", "")
+    if groq_key:
+        try:
+            messages = [{"role": "system", "content": body.get("system", "")}]
+            messages += body.get("messages", [])
+            resp = requests.post(
+                GROQ_URL,
+                json={
+                    "model": GROQ_MODEL,
+                    "messages": messages,
+                    "temperature": float(body.get("temperature", 0.7)),
+                    "max_tokens": int(body.get("max_tokens", MAX_TOKENS)),
+                },
+                headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
+                timeout=30,
+            )
+            data = resp.json()
+            if resp.status_code == 200:
+                text = (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
+                flattened = _try_flatten_json_message(text)
+                log("[chat] groq fallback succeeded")
+                if flattened is not None:
+                    return jsonify(flattened)
+                return jsonify({"text": text})
+            log(f"[chat] groq fallback failed: {resp.status_code}: {resp.text[:200]}")
+        except Exception as e:
+            log(f"[chat] groq fallback exception: {e}")
 
     log(f"[chat] giving up after {MAX_ATTEMPTS} attempts: {last_status}")
     return jsonify({"error": "upstream_error", "status": last_status, "detail": last_detail}), 502
