@@ -54,8 +54,9 @@ FALLBACK_MODEL = "gemini-flash-lite-latest"  # higher free-tier quota; used when
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "openai/gpt-oss-120b"           # final safety net: generous free quota from groq.com (no card needed)
 MAX_TOKENS = 1000
-MAX_ATTEMPTS = 3
-BASE_DELAY = 0.8
+MAX_ATTEMPTS = 1
+TOTAL_TIME_BUDGET = 15  # hard ceiling: if all providers fail, give up after this many seconds
+BASE_DELAY = 0.0
 
 log("[cloud] loading vector store ...")
 _t0 = time.time()
@@ -90,7 +91,7 @@ def embed_query(text):
             "taskType": "RETRIEVAL_QUERY",
             "outputDimensionality": 768,
         },
-        timeout=30,
+        timeout=10,
     )
     if resp.status_code != 200:
         raise RuntimeError(f"embed failed ({resp.status_code}): {resp.text[:200]}")
@@ -152,21 +153,27 @@ def build_payload(body):
 
 
 def do_request(provider, model, payload):
+    """Single provider call with tight timeout — never >10s."""
+    t0 = time.time()
     if provider == "gemini":
-        return requests.post(
+        resp = requests.post(
             GEMINI_BASE.format(model=model),
             json=payload,
             headers={"Content-Type": "application/json", "x-goog-api-key": GOOGLE_API_KEY},
-            timeout=30,
+            timeout=10,
         )
+        log(f"[api] gemini {model}: {resp.status_code} in {time.time()-t0:.1f}s")
+        return resp
     if provider == "openai":
-        return requests.post(
+        resp = requests.post(
             OPENAI_URL,
             json=payload,
             headers={"Content-Type": "application/json", "Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY', '')}"},
-            timeout=30,
+            timeout=10,
         )
-    return requests.post(
+        log(f"[api] openai {model}: {resp.status_code} in {time.time()-t0:.1f}s")
+        return resp
+    resp = requests.post(
         ANTHROPIC_URL,
         json=payload,
         headers={
@@ -174,7 +181,7 @@ def do_request(provider, model, payload):
             "x-api-key": os.environ.get("ANTHROPIC_API_KEY", ""),
             "anthropic-version": ANTHROPIC_VERSION,
         },
-        timeout=30,
+        timeout=10,
     )
 
 
@@ -252,91 +259,68 @@ def chat():
     model, payload, provider = build_payload(body)
     log(f"[chat] provider={provider} model={model} messages={len(body.get('messages') or [])}")
 
-    last_status = None
-    last_detail = ""
-    for attempt in range(1, MAX_ATTEMPTS + 1):
-        if attempt > 1:
-            time.sleep(BASE_DELAY * (attempt - 1))
+    def time_left():
+        return TOTAL_TIME_BUDGET - (time.time() - t_start)
+
+    def try_gemini(m):
+        """Single attempt — returns (text, None) on success, (None, (status, detail)) on failure."""
+        if time_left() < 1:
+            return None, (503, "time_budget_exhausted")
         try:
-            resp = do_request(provider, model, payload)
+            resp = do_request("gemini", m, payload)
             data = resp.json()
         except Exception as e:
-            # Broad catch on purpose: under WSGI any unhandled exception becomes
-            # an opaque HTML 500 — better to retry and return structured JSON.
-            last_status = 502
-            last_detail = str(e)
-            log(f"[chat] attempt {attempt}: exception: {e}")
-            continue
+            log(f"[chat] gemini {m} exception: {e}")
+            return None, (502, str(e)[:200])
         if resp.status_code == 200:
-            text = extract_text(provider, data)
-            flattened = _try_flatten_json_message(text)
-            log(f"[chat] ok in {(time.time() - t_start) * 1000:.0f}ms")
-            if flattened is not None:
-                return jsonify(flattened)
-            return jsonify({"text": text})
-        if resp.status_code in (429, 500, 502, 503, 504):
-            last_status = resp.status_code
-            last_detail = resp.text[:300]
-            continue
-        log(f"[chat] non-retryable error {resp.status_code}: {resp.text[:300]}")
-        # Don't hard-return: fall through to the fallback chain below so an
-        # exhausted/invalid Gemini setup can still be rescued by another model.
-        last_status = resp.status_code
-        last_detail = resp.text[:500]
-        break
+            text = extract_text("gemini", data)
+            return text, None
+        log(f"[chat] gemini {m} failed: {resp.status_code}")
+        return None, (resp.status_code, resp.text[:200])
 
-    # Free-tier rate limits (429) can exhaust the primary model when several
-    # students ask questions at once. Before giving up, try the higher-quota
-    # flash-lite model once — this keeps the demo working under load.
+    # ---- Try primary model (single attempt — 429 = quota gone, no point retrying) ----
+    text, err = try_gemini(model)
+    if text is not None:
+        flattened = _try_flatten_json_message(text)
+        log(f"[chat] primary ok in {time.time()-t_start:.1f}s")
+        return jsonify(flattened or {"text": text})
+
+    # ---- Fallback: flash-lite (higher quota, single attempt) ----
     if is_gemini_model(model) and "lite" not in model.lower():
-        try:
-            resp = do_request("gemini", FALLBACK_MODEL, payload)
-            data = resp.json()
-            if resp.status_code == 200:
-                text = extract_text("gemini", data)
-                flattened = _try_flatten_json_message(text)
-                log(f"[chat] fallback model {FALLBACK_MODEL} succeeded")
-                if flattened is not None:
-                    return jsonify(flattened)
-                return jsonify({"text": text})
-            log(f"[chat] fallback model failed: {resp.status_code}: {resp.text[:200]}")
-        except Exception as e:
-            log(f"[chat] fallback attempt exception: {e}")
+        text, err2 = try_gemini(FALLBACK_MODEL)
+        if text is not None:
+            log(f"[chat] flash-lite ok in {time.time()-t_start:.1f}s")
+            flattened = _try_flatten_json_message(text)
+            return jsonify(flattened or {"text": text})
 
-    # Final safety net: Groq's free tier allows far more daily requests than
-    # Gemini's. If every Gemini route is exhausted (quota, outage, or key
-    # issue), route the request to Llama 3.3 70B so the demo keeps working
-    # even on heavy judging days.
+    # ---- Final safety net: Groq (single attempt, 10s timeout) ----
     groq_key = os.environ.get("GROQ_API_KEY", "")
-    if groq_key:
+    if groq_key and time_left() > 1:
         try:
-            messages = [{"role": "system", "content": body.get("system", "")}]
-            messages += body.get("messages", [])
             resp = requests.post(
                 GROQ_URL,
                 json={
                     "model": GROQ_MODEL,
-                    "messages": messages,
+                    "messages": [{"role": "system", "content": body.get("system", "")}] + body.get("messages", []),
                     "temperature": float(body.get("temperature", 0.7)),
                     "max_tokens": int(body.get("max_tokens", MAX_TOKENS)),
                 },
                 headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
-                timeout=30,
+                timeout=min(10, int(time_left())),
             )
-            data = resp.json()
             if resp.status_code == 200:
+                data = resp.json()
                 text = (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
                 flattened = _try_flatten_json_message(text)
-                log("[chat] groq fallback succeeded")
-                if flattened is not None:
-                    return jsonify(flattened)
-                return jsonify({"text": text})
-            log(f"[chat] groq fallback failed: {resp.status_code}: {resp.text[:200]}")
+                log(f"[chat] groq ok in {time.time()-t_start:.1f}s")
+                return jsonify(flattened or {"text": text})
+            log(f"[chat] groq failed: {resp.status_code}: {resp.text[:200]}")
         except Exception as e:
-            log(f"[chat] groq fallback exception: {e}")
+            log(f"[chat] groq exception: {e}")
 
-    log(f"[chat] giving up after {MAX_ATTEMPTS} attempts: {last_status}")
-    return jsonify({"error": "upstream_error", "status": last_status, "detail": last_detail}), 502
+    total_ms = (time.time() - t_start) * 1000
+    log(f"[chat] all providers failed in {total_ms:.0f}ms")
+    return jsonify({"error": "upstream_error", "detail": "all_providers_exhausted", "ms": int(total_ms)}), 502
 
 
 # WSGI entry point for PythonAnywhere / gunicorn / uwsgi.
