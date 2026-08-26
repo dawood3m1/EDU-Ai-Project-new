@@ -750,6 +750,7 @@ const i18n = {
   'لا تكرر نفس إجابتك السابقة، أعد الصياغة من جديد بمحتوى مختلف.': 'Do not repeat your previous answer; rephrase with new content.',
   'الإنجليزية': 'English',
   'العربية': 'Arabic',
+  'دكتور مادتك': 'Course Doctor',
   'معلم البلاك بورد': 'Blackboard Tutor',
   'المنظومة الأكاديمية': 'Academic System',
   'نظام البلاك بورد': 'Blackboard System',
@@ -1193,9 +1194,9 @@ function networkErrorMessage(code){
 // الذي تنتمي له (tutor أو academic). doctor وblackboard كلاهما يستقبلان سياق
 // RAG ويُؤصَّلان بمقاطع المقرر المسترجعة؛ أما academic فلا يستخدم RAG أبدًا.
 const AGENTS = {
-  doctor:     { key:'doctor',     scenario:'tutor',    label: () => t('معلم البلاك بورد'),   prompt: (ragContext) => tutorSystemPrompt(ragContext) },
+  doctor:     { key:'doctor',     scenario:'tutor',    label: () => t('دكتور مادتك'),   prompt: (ragContext) => tutorSystemPrompt(ragContext) },
   academic:   { key:'academic',   scenario:'academic', label: () => t('المنظومة الأكاديمية'), prompt: () => academicSystemPrompt() },
-  blackboard: { key:'blackboard', scenario:'tutor',    label: () => t('نظام البلاك بورد'),    prompt: (ragContext) => { const sec = getSection(state.profile.sectionId); return reviewSystemPrompt(state.tutor.reviewTopics || [], sec ? sec.course : '', ragContext); } }
+  blackboard: { key:'blackboard', scenario:'tutor',    label: () => t('معلم البلاك بورد'),    prompt: (ragContext) => { const sec = getSection(state.profile.sectionId); return reviewSystemPrompt(state.tutor.reviewTopics || [], sec ? sec.course : '', ragContext); } }
 };
 // Picks which agent should answer the current chat key: the academic tab
 // always uses AGENTS.academic; the Blackboard tab picks doctor or blackboard
