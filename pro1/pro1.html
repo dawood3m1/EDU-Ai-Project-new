@@ -2100,8 +2100,8 @@ function submitInstructor(){
   btn.disabled = true;
   
   setTimeout(() => {
-    const owned = SECTIONS.filter(s=>s.instructor===name);
-    state.faculty.instructorName = name;
+    const owned = SECTIONS.filter(s=>s.instructor===fac.name);
+    state.faculty.instructorName = fac.name;
     state.faculty.ownedSections = owned;
     state.faculty.currentSectionId = owned.length ? owned[0].id : null;
     state.faculty.loaded = false;
