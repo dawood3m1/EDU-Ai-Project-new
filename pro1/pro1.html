@@ -414,9 +414,9 @@ const MOCK_USERS = [
 ];
 
 const MOCK_FACULTY = [
-  { name: 'د. سلطان الحربي', pass: '111111' },
-  { name: 'د. نورة العتيبي', pass: '222222' },
-  { name: 'د. منى القحطاني', pass: '333333' }
+  { name: 'د. سلطان الحربي', nameEn: 'Dr. Sultan Al-Harbi', pass: '111111' },
+  { name: 'د. نورة العتيبي', nameEn: 'Dr. Noura Al-Otaibi', pass: '222222' },
+  { name: 'د. منى القحطاني', nameEn: 'Dr. Mona Al-Qahtani', pass: '333333' }
 ];
 
 /* ---------------- MOCK STORAGE (localStorage-backed persistence) ---------------- */
@@ -2087,8 +2087,8 @@ function submitInstructor(){
     return;
   }
   
-  // التحقق من قاعدة البيانات الوهمية للدكاترة
-  const fac = MOCK_FACULTY.find(f => f.name === name && f.pass === pass);
+  // التحقق من قاعدة البيانات الوهمية للدكاترة (يقبل الاسم بالعربي أو الإنجليزي)
+  const fac = MOCK_FACULTY.find(f => (f.name === name || f.nameEn === name) && f.pass === pass);
   
   if(!fac){
     alert(t('اسم الدكتور أو كلمة المرور غير صحيحة.'));
